@@ -2,6 +2,7 @@
 //my file
 import MainLayout from "@/layouts/MainLayout";
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import {
   Card,
   CardAction,
@@ -12,11 +13,13 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { useState } from "react";
+
 import { Users, Clock, CheckCircle, BookOpen, ArrowRight } from "lucide-react";
 import { applicants, advisors } from "../../data/mockData";
 import { useRouter } from "next/navigation";
-
-
 
 
 // export default function DashboardPage() {
@@ -69,6 +72,10 @@ export default function Dashboard() {
   const total = applicants.length;
   const awaiting = applicants.filter(a => a.status === "awaiting").length;
   const matched = applicants.filter(a => a.status === "matched").length;
+  const [query, setQuery] = useState("")
+  const filtered = applicants.filter((a) => 
+    a.name.toLowerCase().includes(query.toLowerCase())
+  )
 
   const stats = [
     { label: "Total Applicants", value: total, icon: Users, iconBg: "bg-blue-100", iconColor: "text-blue-600" },
@@ -114,14 +121,14 @@ export default function Dashboard() {
             </div>
 
             {/* Quick Actions + Recent — stacked on mobile, side-by-side on desktop */}
-            <div className="grid grid-cols-3 md:grid-cols-3 gap-4 items-start">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
               {/* Quick links */}
               <div className="md:col-span-1 space-y-7.5">
                 <h2 className="text-foreground text-sm" style={{ fontWeight: 600 }}>Quick Navigation</h2>
 
                 <button
                   onClick={() => router.push("/applicants")}
-                  className="w-full bg-card border border-border rounded-xl p-4 text-left hover:border-primary/30 hover:shadow-sm transition-all group"
+                  className="w-full bg-card border border-border rounded-xl p-4 text-left hover:border-primary/30 hover:shadow-sm transition-all group cursor-pointer"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -139,7 +146,7 @@ export default function Dashboard() {
 
                 <button
                   onClick={() => router.push("/advisors")}
-                  className="w-full bg-card border border-border rounded-xl p-4 text-left hover:border-primary/30 hover:shadow-sm transition-all group"
+                  className="w-full bg-card border border-border rounded-xl p-4 text-left hover:border-primary/30 hover:shadow-sm transition-all group cursor-pointer"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -173,43 +180,46 @@ export default function Dashboard() {
               {/* Recent submissions */}
               <Card className="md:col-span-2">
                   <CardHeader><h2>Recent Submissions</h2>
+                  
                   <CardAction>
-                    <button onClick={() => router.push("/applicants")} className="text-xs hover:text-primary transition-colors" style={{ color: "#007CA6" }}>
+                    <button onClick={() => router.push("/applicants")} className="text-xs hover:text-primary transition-colors cursor-pointer" style={{ color: "#007CA6" }}>
                       View all →
                     </button>
                   </CardAction>
                   </CardHeader>
+                  <div className="px-6">
+                    <Input
+                      placeholder="Search..."
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      className="w-full mt-2 mb-2"
+                    />
+                  </div>
                 <CardContent>
-                  {recentApplicants.map((applicant, i) => (
-                    <div
-                      key={applicant.id}
-                      className="flex items-start justify-between gap-2 py-2.5"
-                      style={{ borderBottom: i < recentApplicants.length - 1 ? "1px solid var(--border)" : "none" }}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-primary text-xs shrink-0" style={{ fontWeight: 600 }}>
-                          {applicant.name.split(" ").map(n => n[0]).join("")}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-foreground text-sm truncate" style={{ fontWeight: 500 }}>{applicant.name}</p>
-                          <p className="text-muted-foreground text-xs truncate">{applicant.occupationField} · {applicant.currentRole}</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs whitespace-nowrap ${
-                            applicant.status === "matched"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-amber-100 text-amber-800"
-                          }`}
-                          style={{ fontWeight: 500 }}
-                        >
-                          {applicant.status === "matched" ? "Matched" : "Awaiting"}
-                        </span>
-                        <span className="text-muted-foreground text-xs hidden sm:block">{applicant.submittedAt}</span>
-                      </div>
-                    </div>
-                  ))}
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Field</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Submitted</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filtered.map((a) => (
+                        <TableRow key={a.id}>
+                          <TableCell>{a.name}</TableCell>
+                          <TableCell>{a.occupationField}</TableCell>
+                          <TableCell>
+                            <Badge className={a.status === "matched" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}>
+                              {a.status === "matched" ? "Matched" : "Awaiting"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{a.submittedAt}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </CardContent>
               </Card>
             </div>
