@@ -3,6 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { Menu, X } from "lucide-react";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard" },
@@ -13,6 +15,7 @@ const navItems = [
 
 export default function TopNavigation() {
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <header className="border-b border-slate-200 bg-white">
@@ -34,7 +37,7 @@ export default function TopNavigation() {
           </div>
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="hidden md:flex items-center gap-2">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -54,7 +57,26 @@ export default function TopNavigation() {
             );
           })}
         </div>
+      <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden p-2 cursor-pointer" aria-label="Toggle menu"> {menuOpen ? <X size={24} /> : <Menu size={24}/>} </button>
       </nav>
+      {menuOpen && (
+        <div className="md:hidden flex flex-col gap-1 px-7 pb-4">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setMenuOpen(false)}
+              className = {`rounded-lg px-4 py-2 text-sm font-medium ${isActive ? "bg-[#2F7FA8] text-white" : "text-slate-900 hover:bg-slate-50"
+              }`}
+              >
+                {item.label}
+            </Link>
+          );
+          })}
+        </div>
+      )}
     </header>
   );
 }
