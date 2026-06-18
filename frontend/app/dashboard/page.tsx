@@ -2,6 +2,7 @@
 //my file
 import MainLayout from "@/layouts/MainLayout";
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import {
   Card,
   CardAction,
@@ -210,9 +211,9 @@ export default function Dashboard() {
                           <TableCell>{a.name}</TableCell>
                           <TableCell>{a.occupationField}</TableCell>
                           <TableCell>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs ${a.status === "matched" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                            <Badge className={a.status === "matched" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}>
                               {a.status === "matched" ? "Matched" : "Awaiting"}
-                            </span>
+                            </Badge>
                           </TableCell>
                           <TableCell>{a.submittedAt}</TableCell>
                         </TableRow>
