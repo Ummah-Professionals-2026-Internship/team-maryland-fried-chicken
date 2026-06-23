@@ -16,7 +16,7 @@ export interface Recommendation {
 }
 
 export interface Applicant {
-  id: string;
+  applicantId: string;
   name: string;
   email: string;
   phone: string;
@@ -36,7 +36,7 @@ export interface Applicant {
 }
 
 export interface Advisor {
-  id: string;
+  advisorId: string;
   name: string;
   email: string;
   jobTitle: string;
@@ -56,7 +56,7 @@ export interface Advisor {
 
 export const advisors: Advisor[] = [
   {
-    id: "a1",
+    advisorId: "a1",
     name: "David Johnson",
     email: "david.johnson@email.com",
     jobTitle: "Senior Software Engineer",
@@ -74,7 +74,7 @@ export const advisors: Advisor[] = [
     availability: "Weekends",
   },
   {
-    id: "a2",
+    advisorId: "a2",
     name: "Fatima Ali",
     email: "fatima.ali@email.com",
     jobTitle: "Marketing Manager",
@@ -92,7 +92,7 @@ export const advisors: Advisor[] = [
     availability: "Evenings",
   },
   {
-    id: "a3",
+    advisorId: "a3",
     name: "Ahmed Khan",
     email: "ahmed.khan@email.com",
     jobTitle: "Financial Analyst",
@@ -110,7 +110,7 @@ export const advisors: Advisor[] = [
     availability: "Weekdays evenings",
   },
   {
-    id: "a4",
+    advisorId: "a4",
     name: "Nadia Rahman",
     email: "nadia.rahman@email.com",
     jobTitle: "Healthcare Administrator",
@@ -128,7 +128,7 @@ export const advisors: Advisor[] = [
     availability: "Flexible",
   },
   {
-    id: "a5",
+    advisorId: "a5",
     name: "Omar Siddiqui",
     email: "omar.siddiqui@email.com",
     jobTitle: "Product Manager",
@@ -146,7 +146,7 @@ export const advisors: Advisor[] = [
     availability: "Weekends",
   },
   {
-    id: "a6",
+    advisorId: "a6",
     name: "Layla Hassan",
     email: "layla.hassan@email.com",
     jobTitle: "Corporate Lawyer",
@@ -167,7 +167,7 @@ export const advisors: Advisor[] = [
 
 export const applicants: Applicant[] = [
   {
-    id: "ap1",
+    applicantId: "ap1",
     name: "Yusuf Ibrahim",
     email: "yusuf.ibrahim@email.com",
     phone: "+1 (416) 555-0142",
@@ -184,7 +184,7 @@ export const applicants: Applicant[] = [
     recommendations: [],
   },
   {
-    id: "ap2",
+    applicantId: "ap2",
     name: "Amira Osman",
     email: "amira.osman@email.com",
     phone: "+1 (647) 555-0187",
@@ -229,7 +229,7 @@ export const applicants: Applicant[] = [
     ],
   },
   {
-    id: "ap3",
+    applicantId: "ap3",
     name: "Bilal Chaudhry",
     email: "bilal.chaudhry@email.com",
     phone: "+1 (905) 555-0231",
@@ -246,7 +246,7 @@ export const applicants: Applicant[] = [
     recommendations: [],
   },
   {
-    id: "ap4",
+    applicantId: "ap4",
     name: "Hana Malik",
     email: "hana.malik@email.com",
     phone: "+1 (437) 555-0098",
@@ -263,7 +263,7 @@ export const applicants: Applicant[] = [
     recommendations: [],
   },
   {
-    id: "ap5",
+    applicantId: "ap5",
     name: "Tariq Mahmood",
     email: "tariq.mahmood@email.com",
     phone: "+1 (416) 555-0319",
@@ -280,7 +280,7 @@ export const applicants: Applicant[] = [
     recommendations: [],
   },
   {
-    id: "ap6",
+    applicantId: "ap6",
     name: "Salma Diallo",
     email: "salma.diallo@email.com",
     phone: "+1 (647) 555-0452",
@@ -334,8 +334,8 @@ export function generateRecommendations(applicant: Applicant): Recommendation[] 
 
   return advisors
     .map(advisor => ({
-      id: `r-${Date.now()}-${advisor.id}`,
-      advisorId: advisor.id,
+      id: `r-${Date.now()}-${advisor.advisorId}`,
+      advisorId: advisor.advisorId,
       advisorName: advisor.name,
       jobTitle: advisor.jobTitle,
       company: advisor.company,
