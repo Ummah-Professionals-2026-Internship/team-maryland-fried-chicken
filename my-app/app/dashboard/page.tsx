@@ -207,7 +207,7 @@ export default function Dashboard() {
                     </TableHeader>
                     <TableBody>
                       {filtered.map((a) => (
-                        <TableRow key={a.id}>
+                        <TableRow key={a.applicantId}>
                           <TableCell>{a.name}</TableCell>
                           <TableCell>{a.occupationField}</TableCell>
                           <TableCell>
