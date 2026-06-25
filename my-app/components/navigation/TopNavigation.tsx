@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -18,13 +18,16 @@ export default function TopNavigation() {
     <header className="border-b border-slate-200 bg-white">
       <nav className="flex items-center justify-between px-7 py-4">
         <Link href="/dashboard" className="flex items-center gap-3">
-          <Image
-            src="/images/ummah-logo.png"
-            alt="Ummah Professionals logo"
-            width={42}
-            height={42}
-            priority
-          />
+          <div className="relative h-10 w-10 overflow-hidden rounded-xl">
+            <Image
+              src="/images/ummah-logo.png"
+              alt="Ummah Professionals logo"
+              fill
+              sizes="40px"
+              className="object-contain"
+              priority
+            />
+          </div>
 
           <div className="leading-none">
             <div className="text-xl font-bold text-[#2F7FA8]">ummah</div>
