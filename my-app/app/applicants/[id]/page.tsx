@@ -1,4 +1,5 @@
 // app/applicants/[id]/page.tsx
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Clock, Sparkles } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
@@ -28,6 +29,29 @@ export default async function ApplicantDetailPage({
 
   return (
     <MainLayout>
+      <Link
+        href="/applicants"
+        className="mb-6 inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-5 py-2 text-sm font-medium text-slate-900 transition hover:bg-slate-50"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="17"
+          height="17"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="relative -top-px shrink-0"
+          aria-hidden="true"
+        >
+          <path d="M19 12H5" />
+          <path d="m12 19-7-7 7-7" />
+        </svg>
+        Back to Submissions
+      </Link>
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* LEFT COLUMN */}
         <div className="space-y-6 lg:col-span-1">
