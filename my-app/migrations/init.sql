@@ -56,12 +56,11 @@ CREATE TABLE IF NOT EXISTS advisors (
     job_title                   TEXT,
     industry                    TEXT CHECK (industry IN ('Architecture', 'Technology', 'Finance', 'Healthcare', 'Engineering')),
     experience_level            TEXT CHECK (experience_level IN ('Entry', 'Mid', 'Senior')),
-    reliability_level           INTEGER CHECK (reliability_level IN (1, 2, 3)),  -- 1 = most reliable
+    reliability_level           TEXT CHECK (reliability_level IN ('High', 'Medium', 'Low')),
     career_history_summary      TEXT,
     unique_career_experiences   TEXT,
     mentorship_experience       TEXT,
     max_meetings_per_month      INTEGER NOT NULL DEFAULT 3,
-    current_monthly_assignments INTEGER NOT NULL DEFAULT 0,
     additional_notes            TEXT,
     location_city               TEXT,
     location_state              TEXT,
