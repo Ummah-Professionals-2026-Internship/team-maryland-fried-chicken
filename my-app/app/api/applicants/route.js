@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
-import { applicants } from "@/data/mockData";
+import { getAllApplicants } from "@/lib/applicantService";
 
 // GET /api/applicants
-// Returns all applicants as a JSON array
+// Returns all applicants from the database as a JSON array
 export async function GET() {
-  return NextResponse.json(applicants);
+  const { data, error } = await getAllApplicants();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data);
 }
