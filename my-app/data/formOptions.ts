@@ -18,19 +18,32 @@ export const INDUSTRIES = [
 ] as const;
 
 // service_types seed data (Resume Review, Mentorship Program, General Career Advice).
+// Used on the applicant form (service requested).
 export const SERVICE_TYPES = [
   "Resume Review",
   "Mentorship Program",
   "General Career Advice",
 ] as const;
 
+// Services an advisor can offer — the base set plus Interview Prep and
+// Healthcare Service.
+export const ADVISOR_SERVICE_TYPES = [
+  "Resume Review",
+  "Mentorship Program",
+  "General Career Advice",
+  "Interview Prep",
+  "Healthcare Service",
+] as const;
+
 // applicants.academic_standing CHECK constraint.
+// NOTE: "Graduated" + "Masters" are pending a matching schema update (Shuiab).
 export const ACADEMIC_STANDINGS = [
   "Freshman",
   "Sophomore",
   "Junior",
   "Senior",
-  "Graduate",
+  "Graduated",
+  "Masters",
 ] as const;
 
 // advisors.experience_level CHECK constraint.

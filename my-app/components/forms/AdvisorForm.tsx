@@ -3,11 +3,11 @@
 import * as React from "react";
 import { CheckCircle2 } from "lucide-react";
 import {
+  ADVISOR_SERVICE_TYPES,
   EXPERIENCE_LEVELS,
   EXPERTISE_SUGGESTIONS,
   GENDERS,
   INDUSTRIES,
-  SERVICE_TYPES,
 } from "@/data/formOptions";
 import {
   ChipInput,
@@ -238,7 +238,7 @@ export default function AdvisorForm() {
 
           <Field label="Service Types" required hint="Select all that apply">
             <MultiToggle
-              options={SERVICE_TYPES}
+              options={ADVISOR_SERVICE_TYPES}
               value={form.services}
               onChange={(next) => set("services", next)}
             />
