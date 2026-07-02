@@ -10,6 +10,7 @@ const navItems = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Submissions", href: "/applicants" },
   { label: "Advisors", href: "/advisors" },
+  { label: "Forms", href: "/forms" },
   { label: "Profile", href: "/profile" },
 ];
 
