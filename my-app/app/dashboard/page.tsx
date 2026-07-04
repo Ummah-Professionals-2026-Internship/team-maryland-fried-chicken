@@ -1,16 +1,12 @@
 "use client";
 //my file
 import MainLayout from "@/layouts/MainLayout";
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
   CardAction,
   CardContent,
-  CardDescription,
-  CardFooter,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
 
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
@@ -83,12 +79,7 @@ export default function Dashboard() {
     { label: "Matched", value: matched, icon: CheckCircle, iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
     { label: "Active Advisors", value: advisors.length, icon: BookOpen, iconBg: "bg-purple-100", iconColor: "text-purple-600" },
   ];
-
-  const recentApplicants = [...applicants]
-    .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
-    .slice(0, 5);
-
-  return (
+return (
     <MainLayout>
       <div className="space-y-6">
             <div>
@@ -96,11 +87,11 @@ export default function Dashboard() {
                 Welcome back, Sarah
               </h1>
               <p className="text-muted-foreground text-sm mt-0.5">
-                Here's an overview of the matching program.
+                Here is an overview of the matching program.
               </p> 
             </div>
 
-            {/* Stats — 2 cols on mobile, 4 on desktop */}
+            {/* Stats â€” 2 cols on mobile, 4 on desktop */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
               {stats.map(stat => {
                 const Icon = stat.icon;
@@ -120,7 +111,7 @@ export default function Dashboard() {
               })}
             </div>
 
-            {/* Quick Actions + Recent — stacked on mobile, side-by-side on desktop */}
+            {/* Quick Actions + Recent â€” stacked on mobile, side-by-side on desktop */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
               {/* Quick links */}
               <div className="md:col-span-1 space-y-7.5">
@@ -183,7 +174,7 @@ export default function Dashboard() {
                   
                   <CardAction>
                     <button onClick={() => router.push("/applicants")} className="text-xs hover:text-primary transition-colors cursor-pointer" style={{ color: "#007CA6" }}>
-                      View all →
+                      View all â†’
                     </button>
                   </CardAction>
                   </CardHeader>
