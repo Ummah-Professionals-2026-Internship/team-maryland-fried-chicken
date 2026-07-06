@@ -39,7 +39,7 @@ type AdvisorFormState = {
   services: string[];
   careerHistorySummary: string;
   uniqueCareerExperiences: string;
-  mentorshipExperience: string;
+  mentorshipExperience: string[];
   maxMeetingsPerMonth: string;
   additionalNotes: string;
 };
@@ -323,12 +323,13 @@ degree."
                      <Field
                       label="Unique Career Experiences"
                       htmlFor="uniqueCareerExperiences"
-                       labelClassName="text-lg"
+                      labelClassName="text-lg"
+                      hint="Have you had any unique career experiences that you would like to share with us?"
                     >
                       <MultiToggle
                         options={MENTORSHIP_OPTIONS}
                         value={form.mentorshipExperience}
-                        onChange={(next) => set("mentorshipExperience",)}
+                        onChange={(e) => set("mentorshipExperience", e)}
                       />
                     </Field>
                     <Field

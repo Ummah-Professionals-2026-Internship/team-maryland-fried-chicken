@@ -233,7 +233,7 @@ export default function ApplicantForm() {
           </Field>
         </FieldGrid>
 
-        <Field label="Resume" required className="mt-5">
+        <Field label="Resume" className="mt-5">
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
