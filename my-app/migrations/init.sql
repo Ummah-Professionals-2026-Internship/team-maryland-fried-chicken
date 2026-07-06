@@ -1,5 +1,5 @@
-﻿-- =============================================================================
--- Database Schema â€” Advisor Matching Platform
+-- =============================================================================
+-- Database Schema — Advisor Matching Platform
 -- Run in: Supabase Dashboard -> SQL Editor -> New Query -> Run
 -- =============================================================================
 
@@ -10,7 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ---------------------------------------------------------------------------
 -- Lookup Tables
--- industry is NOT a table here â€” it's a fixed small set, enforced with a
+-- industry is NOT a table here — it's a fixed small set, enforced with a
 -- CHECK constraint directly on advisors/applicants instead of a join.
 -- ---------------------------------------------------------------------------
 
@@ -58,26 +58,8 @@ CREATE TABLE IF NOT EXISTS advisors (
     experience_level            TEXT CHECK (experience_level IN ('Graduate/Working Student', 'Young Professional (0-3 Years)', 'Mid-Career Professional (3-10 Years)', 'Senior Professional (10+ Years)')),
     reliability_level           TEXT CHECK (reliability_level IN ('High', 'Medium', 'Low')),
     career_history_summary      TEXT,
-    unique_career_experiences   TEXT CHECK (unique_career_experiences IN (
-        'Career Change',
-        'Graduate School',
-        'Entrepreneurship',
-        'International Career',
-        'Startup Experience',
-        'Leadership Experience',
-        'Career Break',
-        'First-Generation College Student',
-        'Military Experience',
-        'Remote Work',
-        'Immigration Journey'
-    )),
-    mentorship_experience       TEXT CHECK (mentorship_experience IN (
-        'None',
-        'Less than 1 year',
-        '1–3 years',
-        '3–5 years',
-        '5+ years'
-    )),
+    unique_career_experiences   TEXT,
+    mentorship_experience       TEXT,
     max_meetings_per_month      INTEGER NOT NULL DEFAULT 3,
     additional_notes            TEXT,
     location_city               TEXT,
@@ -94,7 +76,7 @@ CREATE TABLE IF NOT EXISTS advisor_expertise (
     PRIMARY KEY (advisor_id, expertise_id)
 );
 
--- Junction: advisors <-> service_types (many-to-many â€” advisor CAN offer several services)
+-- Junction: advisors <-> service_types (many-to-many — advisor CAN offer several services)
 CREATE TABLE IF NOT EXISTS advisor_services (
     advisor_id      UUID REFERENCES advisors(id) ON DELETE CASCADE,
     service_id      UUID REFERENCES service_types(id) ON DELETE CASCADE,
@@ -104,7 +86,7 @@ CREATE TABLE IF NOT EXISTS advisor_services (
 -- ---------------------------------------------------------------------------
 -- Applicants
 -- industry is a plain TEXT column with a CHECK constraint (constants).
--- service is a direct foreign key â€” applicant only requests ONE service,
+-- service is a direct foreign key — applicant only requests ONE service,
 -- so no junction table needed here.
 -- ---------------------------------------------------------------------------
 
