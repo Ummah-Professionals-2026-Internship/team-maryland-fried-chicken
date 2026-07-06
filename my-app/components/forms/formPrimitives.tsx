@@ -19,15 +19,9 @@ export function FormSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl bg-white p-6 ring-1 ring-slate-200">
+    <section className="rounded-2xl bg-white p-10 ring-1 ring-slate-200">
       <div className="mb-5 flex items-center gap-3 border-b border-slate-100 pb-3">
-        <span
-          className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold text-white"
-          style={{ backgroundColor: BRAND }}
-        >
-          {step}
-        </span>
-        <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
+        <h1 className="text-xl font-semibold text-slate-800">{title}</h1>
       </div>
       {children}
     </section>
@@ -52,6 +46,7 @@ export function Field({
   htmlFor,
   hint,
   className,
+  labelClassName, // new
   children,
 }: {
   label: string;
@@ -59,13 +54,14 @@ export function Field({
   htmlFor?: string;
   hint?: string;
   className?: string;
+  labelClassName?: string; // new
   children: React.ReactNode;
 }) {
   return (
-    <div className={cn("flex flex-col gap-1.5", className)}>
+    <div className={cn("flex flex-col gap-2.5", className)}>
       <label
         htmlFor={htmlFor}
-        className="text-sm font-medium text-slate-700"
+        className={cn("text-sm font-medium text-slate-700", labelClassName)}
       >
         {label}
         {required && <span className="ml-0.5 text-red-500">*</span>}
@@ -210,7 +206,7 @@ export function ChipInput({
   );
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       <div className="flex items-stretch gap-2">
         <input
           value={draft}
