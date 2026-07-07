@@ -10,11 +10,11 @@ type AdvisorProfilePageProps = {
 };
 
 function getReliabilityStyles(level: string) {
-  if (level === "Level 1") {
+  if (level === "High") {
     return "bg-emerald-50 text-emerald-700 border-emerald-200";
   }
 
-  if (level === "Level 2") {
+  if (level === "Medium") {
     return "bg-amber-50 text-amber-700 border-amber-200";
   }
 
@@ -224,7 +224,7 @@ export default async function AdvisorProfilePage({
 
           <InfoSection title="Volunteering">
             <InfoRow label="Volunteering For / Services">
-              <div className="mt-1 flex flex-wrap gap-1.5">
+              <div className="mt-1 py-3 flex flex-wrap gap-1.5">
                 {advisor.serviceTypes.map((service) => (
                   <span
                     key={service}
@@ -235,20 +235,21 @@ export default async function AdvisorProfilePage({
                 ))}
               </div>
             </InfoRow>
-
-            <InfoRow label="Areas of Expertise">
-              <div className="mt-1 flex flex-wrap gap-1.5">
-                {advisor.areasOfExpertise.map((area) => (
-                  <span
-                    key={area}
-                    className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs text-zinc-900"
-                  >
-                    {area}
-                  </span>
-                ))}
-              </div>
-            </InfoRow>
-          </InfoSection>
+            </InfoSection>
+            <InfoSection title="Experience">
+               <InfoRow label="Areas of Expertise">
+                  <div className="mt-1 py-3 flex flex-wrap gap-1.5">
+                    {advisor.areasOfExpertise.map((area) => (
+                      <span
+                        key={area}
+                          className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-medium text-[#007CA6]"
+                      >
+                        {area}
+                      </span>
+                    ))}
+                  </div>
+                </InfoRow>
+            </InfoSection>
 
           <InfoSection title="Education & Location">
             <InfoRow label="Major">{advisor.major}</InfoRow>
@@ -256,22 +257,34 @@ export default async function AdvisorProfilePage({
             <InfoRow label="Country">{advisor.country}</InfoRow>
             <InfoRow label="State / Province">{advisor.stateProvince}</InfoRow>
           </InfoSection>
-        </div>
 
-        <InfoSection title="Background">
+                <InfoSection title="Background">
           <TextRow
-            label="Career History Summary"
+            label="Career Journey"
             text={advisor.careerHistorySummary}
           />
-          <TextRow
+          {/* <TextRow
             label="Unique Career Experiences"
             text={advisor.uniqueCareerExperiences}
-          />
-          <TextRow
-            label="Mentorship Experience"
-            text={advisor.mentorshipExperience}
-          />
+          /> */}
+          <InfoRow label="Unique Career Experiences">
+              <div className="mt-1 py-3 flex flex-wrap gap-1.5">
+                {advisor.uniqueCareerExperiences.map((experience) => (
+                  <span
+                    key={experience}
+                    className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-medium text-[#007CA6]"
+                  >
+                    {experience}
+                  </span>
+                ))}
+              </div>
+            </InfoRow>
+          <p className="mb-1 text-xs py-4 text-slate-500">
+            <span className="text-slate-500">Mentorship Experience: </span>
+            {advisor.mentorshipExperience}
+          </p>
         </InfoSection>
+        </div>
       </section>
     </MainLayout>
   );

@@ -10,7 +10,8 @@
   location: string;
   availability: string;
   serviceTypes: string[];
-  reliabilityLevel: "Level 1" | "Level 2" | "Level 3";
+  uniqueCareerExperiences: string[];
+  reliabilityLevel: "High" | "Medium" | "Low";
   specialties: string[];
 
   careerPrepDefault: boolean;
@@ -26,7 +27,6 @@
   country: string;
   stateProvince: string;
   careerHistorySummary: string;
-  uniqueCareerExperiences: string;
   mentorshipExperience: string;
 };
 
@@ -43,7 +43,7 @@ export const advisors: Advisor[] = [
     location: "Seattle, WA",
     availability: "Available",
     serviceTypes: ["Resume Review", "Mock Interview", "Mentorship"],
-    reliabilityLevel: "Level 3",
+    reliabilityLevel: "High",
     specialties: ["Resume Review", "Mock Interview", "Mentorship"],
 
     careerPrepDefault: true,
@@ -65,10 +65,11 @@ export const advisors: Advisor[] = [
     stateProvince: "Ontario",
     careerHistorySummary:
       "Started as a junior developer at a Toronto startup, grew into senior engineering roles at mid-size tech companies before joining Microsoft. Has led teams of 5-12 engineers across SaaS and cloud infrastructure projects.",
-    uniqueCareerExperiences:
-      "Navigated the transition from a non-traditional CS background into Big Tech. Worked across three countries before settling in Canada.",
+    uniqueCareerExperiences:[
+    "International Career", "Startup Experience", "Military Experience", "Remote Work", "Immigration Journey"
+  ],
     mentorshipExperience:
-      "3 years of formal mentorship through Ummah Professionals. Previously mentored junior developers through an internal Microsoft program.",
+      "None",
   },
   {
     id: "2",
@@ -82,7 +83,7 @@ export const advisors: Advisor[] = [
     location: "Remote",
     availability: "Available",
     serviceTypes: ["Mock Interview", "Mentorship"],
-    reliabilityLevel: "Level 1",
+    reliabilityLevel: "High",
     specialties: ["Mock Interview", "Mentorship"],
 
     careerPrepDefault: true,
@@ -99,10 +100,11 @@ export const advisors: Advisor[] = [
     stateProvince: "New Jersey",
     careerHistorySummary:
       "Built experience across startup and fintech product teams before becoming a product manager at Stripe.",
-    uniqueCareerExperiences:
-      "Has worked closely with engineering, design, and business teams to launch user-facing financial products.",
+    uniqueCareerExperiences: [
+    "Career Change", "Graduate School", "Enterpreneurship","Career Break", "First-Generation College Student", "Military Experience"
+  ],
     mentorshipExperience:
-      "Mentors early-career professionals interested in product management and fintech careers.",
+      "Less than 1 year"
   },
   {
     id: "3",
@@ -116,7 +118,7 @@ export const advisors: Advisor[] = [
     location: "Cincinnati, OH",
     availability: "Available",
     serviceTypes: ["Resume Review", "Mentorship"],
-    reliabilityLevel: "Level 2",
+    reliabilityLevel: "Medium",
     specialties: ["Resume Review", "Mentorship"],
 
     careerPrepDefault: true,
@@ -133,10 +135,11 @@ export const advisors: Advisor[] = [
     stateProvince: "Ohio",
     careerHistorySummary:
       "Developed brand campaigns and consumer marketing strategies across multiple product categories.",
-    uniqueCareerExperiences:
-      "Worked on cross-functional marketing launches with sales, design, and analytics teams.",
+    uniqueCareerExperiences: [
+    "Career Change", "Enterpreneurship", "International Career", "Leadership Experience", "First-Generation College Student", "Remote Work", "Immigration Journey"
+  ],
     mentorshipExperience:
-      "Supports students and early professionals with resumes, networking, and marketing career paths.",
+      "None"
   },
   {
     id: "4",
@@ -150,7 +153,7 @@ export const advisors: Advisor[] = [
     location: "New York, NY",
     availability: "Available",
     serviceTypes: ["Resume Review", "Mock Interview"],
-    reliabilityLevel: "Level 2",
+    reliabilityLevel: "Medium",
     specialties: ["Resume Review", "Mock Interview"],
 
     careerPrepDefault: false,
@@ -167,8 +170,9 @@ export const advisors: Advisor[] = [
     stateProvince: "New York",
     careerHistorySummary:
       "Built finance experience through analyst roles focused on financial modeling, reporting, and client-facing projects.",
-    uniqueCareerExperiences:
-      "Has helped candidates prepare for technical finance interviews and networking conversations.",
+    uniqueCareerExperiences: [
+    "Career Change", "Graduate School", "Startup Experience", "Leadership Experience",  "Remote Work", "Immigration Journey"
+  ],
     mentorshipExperience:
       "Mentors students interested in finance, banking, and analyst-track roles.",
   },
@@ -184,7 +188,7 @@ export const advisors: Advisor[] = [
     location: "New York, NY",
     availability: "Limited Availability",
     serviceTypes: ["Mentorship", "Resume Review", "Career Guidance"],
-    reliabilityLevel: "Level 3",
+    reliabilityLevel: "High",
     specialties: ["Mentorship", "Resume Review", "Career Guidance"],
 
     careerPrepDefault: true,
@@ -201,10 +205,11 @@ export const advisors: Advisor[] = [
     stateProvince: "New York",
     careerHistorySummary:
       "Worked across hospital operations, patient services, and administrative leadership roles.",
-    uniqueCareerExperiences:
-      "Has experience navigating healthcare systems and supporting operational improvements.",
+    uniqueCareerExperiences: [
+    "Career Change", "Graduate School", "Enterpreneurship", "International Career"
+  ],
     mentorshipExperience:
-      "Mentors students interested in healthcare administration and nonprofit healthcare work.",
+      "5+ years"
   },
   {
     id: "6",
@@ -218,7 +223,7 @@ export const advisors: Advisor[] = [
     location: "Chicago, IL",
     availability: "Available",
     serviceTypes: ["Resume Review", "Mock Interview", "Career Guidance"],
-    reliabilityLevel: "Level 3",
+    reliabilityLevel: "High",
     specialties: ["Resume Review", "Mock Interview", "Career Guidance"],
 
     careerPrepDefault: true,
@@ -235,9 +240,10 @@ export const advisors: Advisor[] = [
     stateProvince: "Illinois",
     careerHistorySummary:
       "Built a legal career through corporate law, client advisory work, and international business matters.",
-    uniqueCareerExperiences:
-      "Has worked with multinational clients and supported students preparing for law school and legal internships.",
+    uniqueCareerExperiences: [
+    "Career Change", "Startup Experience", "Leadership Experience", "Career Break", "First-Generation College Student", "Military Experience", "Remote Work"
+  ],
     mentorshipExperience:
-      "Mentors students interested in law school, corporate law, and professional communication.",
+      "3-5 years"
   },
 ];
