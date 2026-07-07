@@ -280,7 +280,7 @@ export default async function AdvisorProfilePage({
           /> */}
           <InfoRow label="Unique Career Experiences">
             {advisor.uniqueCareerExperiences.length > 0 ? (
-              <div className="mt-1 flex flex-wrap gap-1.5">
+              <div className="mt-1 py-3 flex flex-wrap gap-1.5">
                 {advisor.uniqueCareerExperiences.map((experience) => (
                   <span key={experience} className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-medium text-[#007CA6]">
                     {experience}
