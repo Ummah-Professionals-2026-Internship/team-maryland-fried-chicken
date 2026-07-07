@@ -93,7 +93,7 @@ export const advisors: Advisor[] = [
     lastCareerPrep: "2026-05-18",
     signUpDate: "2024-03-04",
     experienceLevel: "7+ Years",
-    areasOfExpertise: ["Product Strategy", "Fintech", "Mock Interviews"],
+    areasOfExpertise: [],
     major: "Business Administration",
     university: "Rutgers University",
     country: "United States",
@@ -171,7 +171,6 @@ export const advisors: Advisor[] = [
     careerHistorySummary:
       "Built finance experience through analyst roles focused on financial modeling, reporting, and client-facing projects.",
     uniqueCareerExperiences: [
-    "Career Change", "Graduate School", "Startup Experience", "Leadership Experience",  "Remote Work", "Immigration Journey"
   ],
     mentorshipExperience:
       "Mentors students interested in finance, banking, and analyst-track roles.",
