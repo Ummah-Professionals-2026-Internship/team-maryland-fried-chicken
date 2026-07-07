@@ -9,17 +9,12 @@ type AdvisorProfilePageProps = {
   }>;
 };
 
-const NotProvided = () => (
-  <span className="text-sm italic text-slate-400">Not Provided</span>
-  );
-
-
 function getReliabilityStyles(level: string) {
-  if (level === "High") {
+  if (level === "Level 1") {
     return "bg-emerald-50 text-emerald-700 border-emerald-200";
   }
 
-  if (level === "Medium") {
+  if (level === "Level 2") {
     return "bg-amber-50 text-amber-700 border-amber-200";
   }
 
@@ -58,15 +53,11 @@ function InfoRow({
   );
 }
 
-function TextRow({ label, text }: { label: string; text?: string }) {
+function TextRow({ label, text }: { label: string; text: string }) {
   return (
     <div className="border-b border-slate-200 py-3 last:border-0">
       <p className="mb-1 text-xs text-slate-500">{label}</p>
-      {text?.trim() ? (
-        <p className="text-sm leading-7 text-zinc-900">{text}</p>
-      ) : (
-        <NotProvided />
-      )}
+      <p className="text-sm leading-7 text-zinc-900">{text}</p>
     </div>
   );
 }
@@ -128,7 +119,6 @@ export default async function AdvisorProfilePage({
     (advisor.monthlyCapacityUsed / advisor.monthlyCapacityTotal) * 100
   );
 
-  
   return (
     <MainLayout>
       <section className="w-full max-w-[1100px] mx-auto space-y-5">
@@ -234,7 +224,7 @@ export default async function AdvisorProfilePage({
 
           <InfoSection title="Volunteering">
             <InfoRow label="Volunteering For / Services">
-              <div className="mt-1 py-3 flex flex-wrap gap-1.5">
+              <div className="mt-1 flex flex-wrap gap-1.5">
                 {advisor.serviceTypes.map((service) => (
                   <span
                     key={service}
@@ -245,22 +235,20 @@ export default async function AdvisorProfilePage({
                 ))}
               </div>
             </InfoRow>
-            </InfoSection>
-            <InfoSection title="Experience">
-               <InfoRow label="Areas of Expertise">
-                {advisor.areasOfExpertise.length > 0 ? (
-                  <div className="mt-1 flex flex-wrap gap-1.5">
-                    {advisor.areasOfExpertise.map((area) => (
-                      <span key={area} className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs text-zinc-900">
-                        {area}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <NotProvided />
-                )}
-              </InfoRow>
-            </InfoSection>
+
+            <InfoRow label="Areas of Expertise">
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {advisor.areasOfExpertise.map((area) => (
+                  <span
+                    key={area}
+                    className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs text-zinc-900"
+                  >
+                    {area}
+                  </span>
+                ))}
+              </div>
+            </InfoRow>
+          </InfoSection>
 
           <InfoSection title="Education & Location">
             <InfoRow label="Major">{advisor.major}</InfoRow>
@@ -268,39 +256,22 @@ export default async function AdvisorProfilePage({
             <InfoRow label="Country">{advisor.country}</InfoRow>
             <InfoRow label="State / Province">{advisor.stateProvince}</InfoRow>
           </InfoSection>
+        </div>
 
-                <InfoSection title="Background">
+        <InfoSection title="Background">
           <TextRow
-            label="Career Journey"
+            label="Career History Summary"
             text={advisor.careerHistorySummary}
           />
-          {/* <TextRow
+          <TextRow
             label="Unique Career Experiences"
             text={advisor.uniqueCareerExperiences}
-          /> */}
-          <InfoRow label="Unique Career Experiences">
-            {advisor.uniqueCareerExperiences.length > 0 ? (
-              <div className="mt-1 py-3 flex flex-wrap gap-1.5">
-                {advisor.uniqueCareerExperiences.map((experience) => (
-                  <span key={experience} className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-medium text-[#007CA6]">
-                    {experience}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <NotProvided />
-            )}
-          </InfoRow>
-          <div className="py-4">
-            <p className="mb-1 text-xs text-slate-500">Mentorship Experience</p>
-            {advisor.mentorshipExperience?.trim() ? (
-              <p className="text-sm text-zinc-900">{advisor.mentorshipExperience}</p>
-            ) : (
-              <NotProvided />
-            )}
-          </div>
+          />
+          <TextRow
+            label="Mentorship Experience"
+            text={advisor.mentorshipExperience}
+          />
         </InfoSection>
-        </div>
       </section>
     </MainLayout>
   );
