@@ -38,8 +38,8 @@ type AdvisorFormState = {
   expertise: string[];
   services: string[];
   careerHistorySummary: string;
-  uniqueCareerExperiences: string;
-  mentorshipExperience: string[];
+  uniqueCareerExperiences: string[];
+  mentorshipExperience: string;
   maxMeetingsPerMonth: string;
   additionalNotes: string;
 };
@@ -58,7 +58,7 @@ const initialState: AdvisorFormState = {
   expertise: [],
   services: [],
   careerHistorySummary: "",
-  uniqueCareerExperiences: "",
+  uniqueCareerExperiences: [],
   mentorshipExperience: "",
   maxMeetingsPerMonth: "",
   additionalNotes: "",
@@ -119,7 +119,7 @@ export default function AdvisorForm() {
       {/* 1. Personal Information */}
       <FormSection step={1} title="Personal Information">
         <FieldGrid>
-          <Field label="First Name" required htmlFo9r="advFirstName" labelClassName="text-lg">
+          <Field label="First Name" required labelClassName="text-lg">
             <TextField
               id="advFirstName"
               required
@@ -328,8 +328,8 @@ degree."
                     >
                       <MultiToggle
                         options={MENTORSHIP_OPTIONS}
-                        value={form.mentorshipExperience}
-                        onChange={(e) => set("mentorshipExperience", e)}
+                        value={form.uniqueCareerExperiences}
+                        onChange={(next) => set("uniqueCareerExperiences", next)}
                       />
                     </Field>
                     <Field
