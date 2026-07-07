@@ -8,11 +8,11 @@ import { advisors } from "@/data/advisors";
 const fieldOrder = ["Technology", "Marketing", "Finance", "Healthcare", "Legal"];
 
 function getReliabilityStyles(level: string) {
-  if (level === "Level 1") {
+  if (level === "High") {
     return "bg-emerald-50 text-emerald-700";
   }
 
-  if (level === "Level 2") {
+  if (level === "Medium") {
     return "bg-amber-50 text-amber-700";
   }
 
