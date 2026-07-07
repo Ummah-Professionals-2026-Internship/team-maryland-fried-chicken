@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, ChevronDown } from "lucide-react";
 import {
   ADVISOR_SERVICE_TYPES,
   EXPERIENCE_LEVELS,
@@ -20,6 +20,10 @@ import {
   TextField,
 } from "./formPrimitives";
 
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "../ui/collapsible";
+import { useState } from "react";
+import { Button } from "../ui/button";
+
 type AdvisorFormState = {
   firstName: string;
   lastName: string;
@@ -34,7 +38,7 @@ type AdvisorFormState = {
   expertise: string[];
   services: string[];
   careerHistorySummary: string;
-  uniqueCareerExperiences: string;
+  uniqueCareerExperiences: string[];
   mentorshipExperience: string;
   maxMeetingsPerMonth: string;
   additionalNotes: string;
@@ -54,7 +58,7 @@ const initialState: AdvisorFormState = {
   expertise: [],
   services: [],
   careerHistorySummary: "",
-  uniqueCareerExperiences: "",
+  uniqueCareerExperiences: [],
   mentorshipExperience: "",
   maxMeetingsPerMonth: "",
   additionalNotes: "",
@@ -102,12 +106,20 @@ export default function AdvisorForm() {
     );
   }
 
+  const [isOpen, setIsOpen] = useState(false)
+  const MENTORSHIP_OPTIONS = [
+    "Career Change", "Graduate School", "Enterpreneurship", "International Career", "Startup Experience", "Leadership Experience", "Career Break", "First-Generation College Student", "Military Experience", "Remote Work", "Immigration Journey"
+  ]
+  const MENTORSHIP_EXPERIENCE_LEVELS = [
+    "None", "Less than 1 year", "1-3 years", "3-5 years", "5+ years"
+  ]
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+    
+    <form onSubmit={handleSubmit} className="flex flex-col gap-10">
       {/* 1. Personal Information */}
       <FormSection step={1} title="Personal Information">
         <FieldGrid>
-          <Field label="First Name" required htmlFor="advFirstName">
+          <Field label="First Name" required labelClassName="text-lg">
             <TextField
               id="advFirstName"
               required
@@ -116,7 +128,7 @@ export default function AdvisorForm() {
               onChange={(e) => set("firstName", e.target.value)}
             />
           </Field>
-          <Field label="Last Name" required htmlFor="advLastName">
+          <Field label="Last Name" required htmlFor="advLastName" labelClassName="text-lg">
             <TextField
               id="advLastName"
               required
@@ -125,7 +137,7 @@ export default function AdvisorForm() {
               onChange={(e) => set("lastName", e.target.value)}
             />
           </Field>
-          <Field label="Email Address" required htmlFor="advEmail">
+          <Field label="Email Address" required htmlFor="advEmail" labelClassName="text-lg">
             <TextField
               id="advEmail"
               type="email"
@@ -135,7 +147,7 @@ export default function AdvisorForm() {
               onChange={(e) => set("email", e.target.value)}
             />
           </Field>
-          <Field label="Gender" required htmlFor="advGender">
+          <Field label="Gender" required htmlFor="advGender" labelClassName="text-lg">
             <SelectField
               id="advGender"
               required
@@ -155,6 +167,7 @@ export default function AdvisorForm() {
             label="Alma Mater(s)"
             required
             hint="Type a university name and press Enter or click +"
+             labelClassName="text-lg"
           >
             <ChipInput
               value={form.almaMaters}
@@ -166,6 +179,7 @@ export default function AdvisorForm() {
             label="Major(s)"
             required
             hint="Type a major and press Enter or click +"
+            labelClassName="text-lg"
           >
             <ChipInput
               value={form.majors}
@@ -179,7 +193,7 @@ export default function AdvisorForm() {
       {/* 3. Professional Information */}
       <FormSection step={3} title="Professional Information">
         <FieldGrid>
-          <Field label="Employer / Company" required htmlFor="company">
+          <Field label="Employer / Company" required htmlFor="company"  labelClassName="text-lg">
             <TextField
               id="company"
               required
@@ -188,7 +202,7 @@ export default function AdvisorForm() {
               onChange={(e) => set("company", e.target.value)}
             />
           </Field>
-          <Field label="Job Title" required htmlFor="jobTitle">
+          <Field label="Job Title" required htmlFor="jobTitle" labelClassName="text-lg">
             <TextField
               id="jobTitle"
               required
@@ -197,7 +211,7 @@ export default function AdvisorForm() {
               onChange={(e) => set("jobTitle", e.target.value)}
             />
           </Field>
-          <Field label="Industry" required htmlFor="advIndustry">
+          <Field label="Industry" required htmlFor="advIndustry" labelClassName="text-lg">
             <SelectField
               id="advIndustry"
               required
@@ -207,7 +221,7 @@ export default function AdvisorForm() {
               onChange={(e) => set("industry", e.target.value)}
             />
           </Field>
-          <Field label="Experience Level" required htmlFor="experienceLevel">
+          <Field label="Experience Level" required htmlFor="experienceLevel" labelClassName="text-lg">
             <SelectField
               id="experienceLevel"
               required
@@ -223,20 +237,7 @@ export default function AdvisorForm() {
       {/* 4. Advisor Information */}
       <FormSection step={4} title="Advisor Information">
         <div className="flex flex-col gap-5">
-          <Field
-            label="Areas of Expertise"
-            required
-            hint="Type or choose from suggestions"
-          >
-            <ChipInput
-              value={form.expertise}
-              onChange={(next) => set("expertise", next)}
-              placeholder="e.g. Financial Modeling"
-              suggestions={EXPERTISE_SUGGESTIONS}
-            />
-          </Field>
-
-          <Field label="Service Types" required hint="Select all that apply">
+          <Field label="Service Types" required hint="Select the types of support you are willing to provide to students." labelClassName="text-lg">
             <MultiToggle
               options={ADVISOR_SERVICE_TYPES}
               value={form.services}
@@ -244,73 +245,127 @@ export default function AdvisorForm() {
             />
           </Field>
 
-          <Field
-            label="Career History Summary"
-            required
-            htmlFor="careerHistorySummary"
-          >
-            <TextArea
-              id="careerHistorySummary"
-              required
-              placeholder="Summarize your career history, key roles, and progression..."
-              value={form.careerHistorySummary}
-              onChange={(e) => set("careerHistorySummary", e.target.value)}
-            />
-          </Field>
-
-          <Field
-            label="Unique Career Experiences"
-            required
-            htmlFor="uniqueCareerExperiences"
-          >
-            <TextArea
-              id="uniqueCareerExperiences"
-              required
-              placeholder="Describe any unique or non-traditional experiences in your career..."
-              value={form.uniqueCareerExperiences}
-              onChange={(e) => set("uniqueCareerExperiences", e.target.value)}
-            />
-          </Field>
-
-          <Field
-            label="Mentorship Experience"
-            required
-            htmlFor="mentorshipExperience"
-          >
-            <TextArea
-              id="mentorshipExperience"
-              required
-              placeholder="Describe your previous mentorship or advising experience..."
-              value={form.mentorshipExperience}
-              onChange={(e) => set("mentorshipExperience", e.target.value)}
-            />
-          </Field>
-
-          <Field
-            label="Maximum Meetings Per Month"
-            required
-            htmlFor="maxMeetings"
-            className="max-w-xs"
-          >
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-6">
+            <div className="flex flex-col gap-2.5 sm:flex-1">
+              <label
+                htmlFor="maxMeetings"
+                className="text-lg font-medium text-slate-700"
+              >
+                Maximum Meetings Per Month
+                <span className="ml-0.5 text-red-500">*</span>
+              </label>
+              <p className="-mt-0.5 text-xs text-slate-400">
+                Approximately how many mentoring meetings are you comfortable
+                conducting each month? This helps us balance advisor workload
+                and prevent advisor burnout.
+              </p>
+            </div>
             <TextField
               id="maxMeetings"
               type="number"
               min={1}
               required
-              placeholder="e.g. 4"
+              placeholder="Example: 4"
               value={form.maxMeetingsPerMonth}
               onChange={(e) => set("maxMeetingsPerMonth", e.target.value)}
+              className="sm:w-40 sm:shrink-0"
             />
-          </Field>
+          </div>
 
-          <Field label="Additional Notes" htmlFor="advAdditionalNotes">
-            <TextArea
-              id="advAdditionalNotes"
-              placeholder="Anything else you'd like us to know..."
-              value={form.additionalNotes}
-              onChange={(e) => set("additionalNotes", e.target.value)}
-            />
-          </Field>
+          <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+            <CollapsibleTrigger asChild>
+              <Button 
+                type="button"
+                variant="ghost"
+                className="flex w-full items-center justify-between p-0 text-xl   "
+
+                >
+                  <span>Want to help us make even better matches? (Optional)</span>
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
+                    />
+                </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-8 pt-4">
+                    <Field
+                      label="Areas of Expertise"
+                      hint="Please narrow down your area of expertise for us and mention any specific skills
+that you implement in your daily work. This information helps us provide more
+relevant advisor recommendations."
+ labelClassName="text-lg"
+                    >
+                      <ChipInput
+                        value={form.expertise}
+                        onChange={(next) => set("expertise", next)}
+                        placeholder="Example: Software Engineering, Product Management, Financial Modeling, UX
+Design"
+                        suggestions={EXPERTISE_SUGGESTIONS}
+                      />
+                    </Field>
+                    <Field
+                      label="Career Journey"
+                      hint="Briefly describe your current role and career journey in 2–3 sentences. This helps
+us understand your professional background."
+                      htmlFor="careerHistorySummary"
+                       labelClassName="text-lg"
+                    >
+                      <TextArea
+                        id="careerHistorySummary"
+                        placeholder="Example: I am currently a Software Engineer at Microsoft with five years of
+experience building cloud applications after completing my Computer Science
+degree."
+                        value={form.careerHistorySummary}
+                        onChange={(e) => set("careerHistorySummary", e.target.value)}
+                      />
+                    </Field>
+                     <Field
+                      label="Unique Career Experiences"
+                      htmlFor="uniqueCareerExperiences"
+                      labelClassName="text-lg"
+                      hint="Have you had any unique career experiences that you would like to share with us?"
+                    >
+                      <MultiToggle
+                        options={MENTORSHIP_OPTIONS}
+                        value={form.uniqueCareerExperiences}
+                        onChange={(next) => set("uniqueCareerExperiences", next)}
+                      />
+                    </Field>
+                    <Field
+                      label="How much prior mentorship or advising experience do you have with Ummah
+Professionals?"
+hint="Select the option that best describes your previous mentoring experience."
+                      htmlFor="mentorshipExperience"
+                       labelClassName="text-lg"
+                    >
+                      <SelectField
+                        id="mentorshipExperience"
+                        required
+                        placeholder="Select Mentorship experience"
+                        options={MENTORSHIP_EXPERIENCE_LEVELS}
+                        value={form.mentorshipExperience}
+                        onChange={(e) => set("mentorshipExperience", e.target.value)}
+                      />
+                    </Field>
+                    <Field label="Additional Notes" 
+                    hint="Is there anything else you would like us to know about your background or
+experience?"
+                    htmlFor="advAdditionalNotes"
+                     labelClassName="text-lg">
+                      <TextArea
+                        id="advAdditionalNotes"
+
+                        placeholder="Share any additional information that may help us understand your professional
+experienc"
+                        value={form.additionalNotes}
+                        onChange={(e) => set("additionalNotes", e.target.value)}
+                      />
+                    </Field>
+
+            </CollapsibleContent>
+          
+          </Collapsible>
         </div>
       </FormSection>
 
