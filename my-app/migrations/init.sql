@@ -1,5 +1,5 @@
 -- =============================================================================
--- Database Schema — Advisor Matching Platform
+-- Database Schema â€” Advisor Matching Platform
 -- Run in: Supabase Dashboard -> SQL Editor -> New Query -> Run
 -- =============================================================================
 
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS advisors (
     reliability_level           TEXT CHECK (reliability_level IN ('High', 'Medium', 'Low')),
     career_history_summary      TEXT,
     unique_career_experiences   TEXT CHECK (unique_career_experiences IN ('Career Change', 'Graduate School', 'Entrepreneurship', 'International Career', 'Startup Experience', 'Leadership Experience', 'Career Break', 'First-Generation College Student', 'Military Experience', 'Remote Work', 'Immigration Journey')),
-    mentorship_experience       TEXT CHECK (mentorship_experience IN ('None', 'Less than 1 year', '1–3 years', '3–5 years', '5+ years')),
+    mentorship_experience       TEXT CHECK (mentorship_experience IN ('None', 'Less than 1 year', '1â€“3 years', '3â€“5 years', '5+ years')),
     max_meetings_per_month      INTEGER NOT NULL DEFAULT 3,
     additional_notes            TEXT,
     location_city               TEXT,

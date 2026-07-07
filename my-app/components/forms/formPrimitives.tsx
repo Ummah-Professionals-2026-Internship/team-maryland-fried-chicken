@@ -21,6 +21,9 @@ export function FormSection({
   return (
     <section className="rounded-2xl bg-white p-10 ring-1 ring-slate-200">
       <div className="mb-5 flex items-center gap-3 border-b border-slate-100 pb-3">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold text-white" style={{ backgroundColor: BRAND }}>
+          {step}
+        </span>
         <h1 className="text-xl font-semibold text-slate-800">{title}</h1>
       </div>
       {children}

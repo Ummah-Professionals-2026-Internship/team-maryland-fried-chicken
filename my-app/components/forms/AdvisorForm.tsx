@@ -67,6 +67,15 @@ const initialState: AdvisorFormState = {
 export default function AdvisorForm() {
   const [form, setForm] = React.useState<AdvisorFormState>(initialState);
   const [submitted, setSubmitted] = React.useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const MENTORSHIP_OPTIONS = [
+    "Career Change", "Graduate School", "Enterpreneurship", "International Career", "Startup Experience", "Leadership Experience", "Career Break", "First-Generation College Student", "Military Experience", "Remote Work", "Immigration Journey"
+  ];
+
+  const MENTORSHIP_EXPERIENCE_LEVELS = [
+    "None", "Less than 1 year", "1-3 years", "3-5 years", "5+ years"
+  ];
 
   const set = <K extends keyof AdvisorFormState>(
     key: K,
@@ -106,13 +115,6 @@ export default function AdvisorForm() {
     );
   }
 
-  const [isOpen, setIsOpen] = useState(false)
-  const MENTORSHIP_OPTIONS = [
-    "Career Change", "Graduate School", "Enterpreneurship", "International Career", "Startup Experience", "Leadership Experience", "Career Break", "First-Generation College Student", "Military Experience", "Remote Work", "Immigration Journey"
-  ]
-  const MENTORSHIP_EXPERIENCE_LEVELS = [
-    "None", "Less than 1 year", "1-3 years", "3-5 years", "5+ years"
-  ]
   return (
     
     <form onSubmit={handleSubmit} className="flex flex-col gap-10">
@@ -306,7 +308,7 @@ Design"
                     </Field>
                     <Field
                       label="Career Journey"
-                      hint="Briefly describe your current role and career journey in 2–3 sentences. This helps
+                      hint="Briefly describe your current role and career journey in 2Ã¢â‚¬â€œ3 sentences. This helps
 us understand your professional background."
                       htmlFor="careerHistorySummary"
                        labelClassName="text-lg"
