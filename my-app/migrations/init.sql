@@ -1,4 +1,4 @@
-﻿-- =============================================================================
+-- =============================================================================
 -- Database Schema â€” Advisor Matching Platform
 -- Run in: Supabase Dashboard -> SQL Editor -> New Query -> Run
 -- =============================================================================
@@ -10,18 +10,20 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ---------------------------------------------------------------------------
 -- Lookup Tables
--- industry is NOT a table here â€” it's a fixed small set, enforced with a
--- CHECK constraint directly on advisors/applicants instead of a join.
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS service_types (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name        TEXT UNIQUE NOT NULL  -- 'Resume Review', 'Mentorship Program', 'General Career Advice'
+    name        TEXT UNIQUE NOT NULL,  -- 'Resume Review', 'Mentorship Program', 'General Career Advice'
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS expertise_areas (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name        TEXT UNIQUE NOT NULL  -- 'CAD Design', 'Sustainability', 'Urban Planning', etc.
+    name        TEXT UNIQUE NOT NULL,  -- 'CAD Design', 'Sustainability', 'Urban Planning', etc.
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ---------------------------------------------------------------------------
@@ -33,22 +35,22 @@ CREATE TABLE IF NOT EXISTS users (
     email       TEXT UNIQUE NOT NULL,
     password    TEXT NOT NULL,
     role        TEXT NOT NULL CHECK (role IN ('advisor', 'applicant')),
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ---------------------------------------------------------------------------
 -- Advisors
--- industry is a plain TEXT column with a CHECK constraint (constants),
--- not a foreign key to a lookup table.
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS advisors (
     id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id                     UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-    advisor_code                TEXT UNIQUE,                 -- e.g. ADV-101-0001
+    advisor_code                TEXT UNIQUE,                  -- e.g. ADV-101-0001
     first_name                  TEXT NOT NULL,
     last_name                   TEXT NOT NULL,
     email                       TEXT,
+    phone_number                TEXT,                         -- Added phone number field
     gender                      TEXT,
     alma_mater                  TEXT,
     major                       TEXT,
@@ -58,54 +60,37 @@ CREATE TABLE IF NOT EXISTS advisors (
     experience_level            TEXT CHECK (experience_level IN ('Graduate/Working Student', 'Young Professional (0-3 Years)', 'Mid-Career Professional (3-10 Years)', 'Senior Professional (10+ Years)')),
     reliability_level           TEXT CHECK (reliability_level IN ('High', 'Medium', 'Low')),
     career_history_summary      TEXT,
-    unique_career_experiences   TEXT CHECK (unique_career_experiences IN (
-        'Career Change',
-        'Graduate School',
-        'Entrepreneurship',
-        'International Career',
-        'Startup Experience',
-        'Leadership Experience',
-        'Career Break',
-        'First-Generation College Student',
-        'Military Experience',
-        'Remote Work',
-        'Immigration Journey'
-    )),
-    mentorship_experience       TEXT CHECK (mentorship_experience IN (
-        'None',
-        'Less than 1 year',
-        '1–3 years',
-        '3–5 years',
-        '5+ years'
-    )),
+    unique_career_experiences   TEXT CHECK (unique_career_experiences IN ('Career Change', 'Graduate School', 'Entrepreneurship', 'International Career', 'Startup Experience', 'Leadership Experience', 'Career Break', 'First-Generation College Student', 'Military Experience', 'Remote Work', 'Immigration Journey')),
+    mentorship_experience       TEXT CHECK (mentorship_experience IN ('None', 'Less than 1 year', '1â€“3 years', '3â€“5 years', '5+ years')),
     max_meetings_per_month      INTEGER NOT NULL DEFAULT 3,
     additional_notes            TEXT,
     location_city               TEXT,
-    location_state              TEXT,
+    location_state               TEXT,
     availability_status         TEXT NOT NULL DEFAULT 'Available' CHECK (availability_status IN ('Available', 'Unavailable')),
     created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Junction: advisors <-> expertise_areas (many-to-many, advisor can have several skills)
+-- Junction: advisors <-> expertise_areas
 CREATE TABLE IF NOT EXISTS advisor_expertise (
-    advisor_id      UUID REFERENCES advisors(id) ON DELETE CASCADE,
-    expertise_id    UUID REFERENCES expertise_areas(id) ON DELETE CASCADE,
+    advisor_id   UUID REFERENCES advisors(id) ON DELETE CASCADE,
+    expertise_id UUID REFERENCES expertise_areas(id) ON DELETE CASCADE,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (advisor_id, expertise_id)
 );
 
--- Junction: advisors <-> service_types (many-to-many â€” advisor CAN offer several services)
+-- Junction: advisors <-> service_types
 CREATE TABLE IF NOT EXISTS advisor_services (
-    advisor_id      UUID REFERENCES advisors(id) ON DELETE CASCADE,
-    service_id      UUID REFERENCES service_types(id) ON DELETE CASCADE,
+    advisor_id   UUID REFERENCES advisors(id) ON DELETE CASCADE,
+    service_id   UUID REFERENCES service_types(id) ON DELETE CASCADE,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (advisor_id, service_id)
 );
 
 -- ---------------------------------------------------------------------------
 -- Applicants
--- industry is a plain TEXT column with a CHECK constraint (constants).
--- service is a direct foreign key â€” applicant only requests ONE service,
--- so no junction table needed here.
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS applicants (
@@ -114,54 +99,57 @@ CREATE TABLE IF NOT EXISTS applicants (
     first_name              TEXT NOT NULL,
     last_name               TEXT NOT NULL,
     email                   TEXT,
-    gender                  TEXT,
+    phone_number            TEXT,                         -- Added phone number field
+    university              TEXT,                         -- Added university field
     major                   TEXT,
-    academic_standing       TEXT CHECK (academic_standing IN ('Freshman', 'Sophomore', 'Junior', 'Senior', 'Graduate')),
+    academic_standing       TEXT CHECK (academic_standing IN ('Freshman', 'Sophomore', 'Junior', 'Senior', 'Masters', 'Graduated')), -- Updated enum options
     industry                TEXT CHECK (industry IN ('Business', 'Education', 'Engineering', 'Finance', 'Healthcare', 'Information Technology', 'Law', 'Social Services', 'Other')),
     desired_future_career   TEXT,
-    service_id              UUID REFERENCES service_types(id),  -- one service per applicant, direct FK
+    service_id              UUID REFERENCES service_types(id),
     additional_notes        TEXT,
     resume_url              TEXT,
-    source                  TEXT,  -- how they heard about the program
+    source                  TEXT,
+    location_city           TEXT,                         -- Added location fields
+    location_state          TEXT,                         -- Added location fields
     submission_date         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     status                  TEXT NOT NULL DEFAULT 'Pending Review'
                                  CHECK (status IN ('Pending Review', 'Recommendations Generated', 'Matched', 'Closed')),
-    created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ---------------------------------------------------------------------------
 -- Recommendations
--- All generated recommendations are preserved, even if rejected.
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS recommendations (
     id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     applicant_id            UUID NOT NULL REFERENCES applicants(id) ON DELETE CASCADE,
     advisor_id              UUID NOT NULL REFERENCES advisors(id) ON DELETE CASCADE,
-    match_score             NUMERIC,                -- calculated recommendation score
-    rank_position           INTEGER,                -- 1 through 5, ranking among an applicant's recommendations
+    match_score             NUMERIC,
+    rank_position           INTEGER,
     recommendation_status   TEXT NOT NULL DEFAULT 'Pending'
                                  CHECK (recommendation_status IN ('Pending', 'Accepted', 'Rejected')),
-    matching_explanation    TEXT,                   -- why this recommendation was generated
-    generated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    matching_explanation    TEXT,
+    generated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(), -- acts as created_at
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ---------------------------------------------------------------------------
 -- Matches
--- Only accepted recommendations become matches.
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS matches (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     applicant_id        UUID NOT NULL REFERENCES applicants(id) ON DELETE CASCADE,
     advisor_id          UUID NOT NULL REFERENCES advisors(id) ON DELETE CASCADE,
-    recommendation_id   UUID REFERENCES recommendations(id) ON DELETE SET NULL,  -- recommendation that produced this match
-    match_status         TEXT NOT NULL DEFAULT 'Active'
-                              CHECK (match_status IN ('Active', 'Completed', 'Cancelled')),
-    matched_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    notes                TEXT,
-    created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    recommendation_id   UUID REFERENCES recommendations(id) ON DELETE SET NULL,
+    match_status        TEXT NOT NULL DEFAULT 'Active'
+                             CHECK (match_status IN ('Active', 'Completed', 'Cancelled')),
+    matched_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(), -- acts as created_at
+    notes               TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ---------------------------------------------------------------------------
@@ -182,10 +170,10 @@ CREATE INDEX IF NOT EXISTS idx_recommendations_status       ON recommendations(r
 
 CREATE INDEX IF NOT EXISTS idx_matches_applicant            ON matches(applicant_id);
 CREATE INDEX IF NOT EXISTS idx_matches_advisor              ON matches(advisor_id);
-CREATE INDEX IF NOT EXISTS idx_matches_status                ON matches(match_status);
+CREATE INDEX IF NOT EXISTS idx_matches_status               ON matches(match_status);
 
 -- ---------------------------------------------------------------------------
--- Auto-update updated_at via trigger
+-- Auto-update updated_at via trigger (Applies to all tables)
 -- ---------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION set_updated_at()
@@ -200,7 +188,17 @@ DO $$
 DECLARE
     t TEXT;
 BEGIN
-    FOR t IN SELECT unnest(ARRAY['advisors', 'applicants']) LOOP
+    FOR t IN SELECT unnest(ARRAY[
+        'service_types', 
+        'expertise_areas', 
+        'users', 
+        'advisors', 
+        'advisor_expertise', 
+        'advisor_services', 
+        'applicants', 
+        'recommendations', 
+        'matches'
+    ]) LOOP
         IF NOT EXISTS (
             SELECT 1 FROM pg_trigger WHERE tgname = 'trg_set_updated_at_' || t
         ) THEN

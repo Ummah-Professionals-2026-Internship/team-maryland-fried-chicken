@@ -1,4 +1,4 @@
-﻿-- =============================================================================
+-- =============================================================================
 -- Seed Data — Advisor Matching Platform
 -- Issue #68: Database Seeding & Mock Data Migration
 -- Run after migrations/init.sql in Supabase SQL Editor.
@@ -477,7 +477,7 @@ INSERT INTO applicants (
         'amira.osman@example.com',
         'Female',
         'Marketing',
-        'Graduate',
+        'Masters',
         'Business',
         'Brand Manager',
         (SELECT id FROM service_types WHERE name = 'Resume Review'),
@@ -511,7 +511,7 @@ INSERT INTO applicants (
         'hana.malik@example.com',
         'Female',
         'Health Administration',
-        'Graduate',
+        'Masters',
         'Healthcare',
         'Healthcare Operations Manager',
         (SELECT id FROM service_types WHERE name = 'Career Guidance'),
@@ -596,7 +596,7 @@ INSERT INTO applicants (
         'ilyas.rahman@example.com',
         'Male',
         'Data Science',
-        'Graduate',
+        'Masters',
         'Information Technology',
         'Data Analyst',
         (SELECT id FROM service_types WHERE name = 'Career Guidance'),
