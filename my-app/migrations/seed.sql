@@ -1,6 +1,6 @@
 -- =============================================================================
 -- Seed Data — Advisor Matching Platform
--- Issue #68: Database Seeding & Mock Data Migration
+-- Complete, idempotent mock data for advisors, applicants, services, and expertise.
 -- Run after migrations/init.sql in Supabase SQL Editor.
 -- =============================================================================
 
@@ -17,6 +17,7 @@ INSERT INTO service_types (name) VALUES
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO expertise_areas (name) VALUES
+    ('Software Engineering'),
     ('Full-Stack Development'),
     ('Product Management'),
     ('Financial Analysis'),
@@ -34,18 +35,98 @@ INSERT INTO expertise_areas (name) VALUES
     ('Career Transition'),
     ('Startup Operations'),
     ('Graduate School Planning'),
-    ('Remote Work Strategy')
+    ('Remote Work Strategy'),
+    ('Operations Management'),
+    ('Law School Preparation'),
+    ('Public Policy')
 ON CONFLICT (name) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
+-- Remove old mock records before reseeding
+-- Keeps seed.sql safe to rerun without creating duplicate names/records.
+-- ---------------------------------------------------------------------------
+
+DELETE FROM applicants
+WHERE email IN (
+    'zara.mahmood@example.com',
+    'hamza.qureshi@example.com',
+    'lina.osman@example.com',
+    'faris.patel@example.com',
+    'amina.caldwell@example.com',
+    'bilal.nguyen@example.com',
+    'sara.ahmed@example.com',
+    'taha.williams@example.com',
+    'mariam.castillo@example.com',
+    'noor.ramirez@example.com',
+    'kareem.saleh@example.com',
+    'layla.bennett@example.com',
+    -- Previous mock emails from earlier seed versions
+    'yusuf.ibrahim@example.com',
+    'amira.osman@example.com',
+    'bilal.chaudhry@example.com',
+    'hana.malik@example.com',
+    'tariq.mahmood@example.com',
+    'salma.diallo@example.com',
+    'zain.patel@example.com',
+    'maryam.farah@example.com',
+    'ilyas.rahman@example.com',
+    'amina.qureshi@example.com',
+    'noor.haddad@example.com'
+);
+
+DELETE FROM advisors
+WHERE advisor_code IN (
+    'ADV-101-0001',
+    'ADV-101-0002',
+    'ADV-101-0003',
+    'ADV-101-0004',
+    'ADV-101-0005',
+    'ADV-101-0006',
+    'ADV-101-0007',
+    'ADV-101-0008',
+    'ADV-101-0009',
+    'ADV-101-0010',
+    'ADV-101-0011',
+    'ADV-101-0012'
+)
+OR email IN (
+    'david.johnson@example.com',
+    'omar.siddiqui@example.com',
+    'fatima.ali@example.com',
+    'ahmed.khan@example.com',
+    'nadia.rahman@example.com',
+    'layla.hassan@example.com',
+    'hassan.farooq@example.com',
+    'maryam.yusuf@example.com',
+    'bilal.chaudhry@example.com',
+    'aisha.diallo@example.com',
+    'ayaan.siddiq@example.com',
+    'hafsa.rahman@example.com',
+    'karim.abdullah@example.com',
+    'noura.elamin@example.com',
+    'zayd.malik@example.com',
+    'samira.khan@example.com',
+    'idris.thompson@example.com',
+    'leena.haddad@example.com',
+    'musa.bennett@example.com',
+    'yasmin.farooq@example.com',
+    'omar.navarro@example.com',
+    'fatima.brooks@example.com'
+);
+
+-- ---------------------------------------------------------------------------
 -- Advisors
+-- Every advisor includes identity, contact, LinkedIn, career, availability, and service mapping data.
 -- ---------------------------------------------------------------------------
 
 INSERT INTO advisors (
+    user_id,
     advisor_code,
     first_name,
     last_name,
     email,
+    phone_number,
+    linkedin_url,
     gender,
     alma_mater,
     major,
@@ -64,10 +145,13 @@ INSERT INTO advisors (
     availability_status
 ) VALUES
     (
+        NULL,
         'ADV-101-0001',
-        'David',
-        'Johnson',
-        'david.johnson@example.com',
+        'Ayaan',
+        'Siddiq',
+        'ayaan.siddiq@example.com',
+        '206-555-0101',
+        'https://www.linkedin.com/in/ayaan-siddiq-mock',
         'Male',
         'University of Washington',
         'Computer Science',
@@ -76,109 +160,99 @@ INSERT INTO advisors (
         'Information Technology',
         'Senior Professional (10+ Years)',
         'High',
-        'Built a career across full-stack engineering, cloud platforms, and engineering mentorship.',
-        'International Career',
+        'Built production web platforms and mentored junior engineers across cloud and full-stack teams.',
+        'Leadership Experience',
         '5+ years',
         4,
-        'Strong fit for software engineering, system design, and technical interview preparation.',
+        'Strong fit for software engineering, backend systems, and technical interview preparation.',
         'Seattle',
         'WA',
         'Available'
     ),
     (
+        NULL,
         'ADV-101-0002',
-        'Omar',
-        'Siddiqui',
-        'omar.siddiqui@example.com',
-        'Male',
+        'Hafsa',
+        'Rahman',
+        'hafsa.rahman@example.com',
+        '212-555-0102',
+        'https://www.linkedin.com/in/hafsa-rahman-mock',
+        'Female',
         'Rutgers University',
-        'Computer Science',
-        'Stripe',
+        'Information Technology',
+        'Figma',
         'Product Manager',
         'Information Technology',
         'Mid-Career Professional (3-10 Years)',
-        'Medium',
-        'Moved from software engineering into product management with a focus on fintech products.',
+        'High',
+        'Moved from implementation work into product management with a focus on user research and roadmap planning.',
         'Career Change',
-        '1–3 years',
+        '3–5 years',
         3,
-        'Helpful for applicants interested in product management and fintech.',
+        'Helpful for product management, UX collaboration, and early-career tech planning.',
         'New York',
         'NY',
         'Available'
     ),
     (
+        NULL,
         'ADV-101-0003',
-        'Fatima',
-        'Ali',
-        'fatima.ali@example.com',
-        'Female',
-        'University of Michigan',
-        'Marketing',
-        'Procter & Gamble',
-        'Marketing Manager',
-        'Business',
-        'Mid-Career Professional (3-10 Years)',
-        'Medium',
-        'Experienced in brand strategy, campaign execution, and cross-functional product launches.',
-        'Leadership Experience',
-        '3–5 years',
-        3,
-        'Good fit for marketing, business, and resume storytelling.',
-        'Cincinnati',
-        'OH',
-        'Available'
-    ),
-    (
-        'ADV-101-0004',
-        'Ahmed',
-        'Khan',
-        'ahmed.khan@example.com',
+        'Karim',
+        'Abdullah',
+        'karim.abdullah@example.com',
+        '609-555-0103',
+        'https://www.linkedin.com/in/karim-abdullah-mock',
         'Male',
-        'New York University',
+        'Princeton University',
         'Economics',
-        'Goldman Sachs',
+        'JPMorgan Chase',
         'Financial Analyst',
         'Finance',
-        'Young Professional (0-3 Years)',
+        'Mid-Career Professional (3-10 Years)',
         'Medium',
-        'Works in finance with experience in analyst recruiting, networking, and interview preparation.',
+        'Works in financial analysis, reporting, and internship recruiting preparation for analyst-track candidates.',
         'First-Generation College Student',
-        'Less than 1 year',
-        2,
-        'Useful for finance applicants seeking analyst-track roles.',
+        '1–3 years',
+        3,
+        'Good fit for finance resumes, networking strategy, and behavioral interviews.',
         'Jersey City',
         'NJ',
         'Available'
     ),
     (
-        'ADV-101-0005',
-        'Nadia',
-        'Rahman',
-        'nadia.rahman@example.com',
+        NULL,
+        'ADV-101-0004',
+        'Noura',
+        'Elamin',
+        'noura.elamin@example.com',
+        '646-555-0104',
+        'https://www.linkedin.com/in/noura-elamin-mock',
         'Female',
         'Columbia University',
         'Health Administration',
         'Mount Sinai Health System',
-        'Healthcare Administrator',
+        'Healthcare Operations Manager',
         'Healthcare',
         'Senior Professional (10+ Years)',
         'High',
-        'Led healthcare operations teams and supported students entering healthcare administration.',
+        'Led healthcare operations teams and supported students entering administration, operations, and patient services.',
         'Leadership Experience',
         '5+ years',
         5,
-        'High-capacity healthcare mentor.',
+        'High-capacity healthcare mentor for operations and administration pathways.',
         'New York',
         'NY',
         'Available'
     ),
     (
-        'ADV-101-0006',
-        'Layla',
-        'Hassan',
-        'layla.hassan@example.com',
-        'Female',
+        NULL,
+        'ADV-101-0005',
+        'Zayd',
+        'Malik',
+        'zayd.malik@example.com',
+        '312-555-0105',
+        'https://www.linkedin.com/in/zayd-malik-mock',
+        'Male',
         'Northwestern University',
         'Law',
         'Baker McKenzie',
@@ -186,20 +260,48 @@ INSERT INTO advisors (
         'Law',
         'Senior Professional (10+ Years)',
         'High',
-        'Built a legal career in corporate law, client advisory, and international business matters.',
+        'Built a corporate law career across internships, client advisory, and legal writing for business matters.',
         'International Career',
         '3–5 years',
         3,
-        'Good fit for law school, legal internships, and professional communication.',
+        'Good fit for law school planning, legal internship resumes, and professional communication.',
         'Chicago',
         'IL',
         'Available'
     ),
     (
+        NULL,
+        'ADV-101-0006',
+        'Samira',
+        'Khan',
+        'samira.khan@example.com',
+        '513-555-0106',
+        'https://www.linkedin.com/in/samira-khan-mock',
+        'Female',
+        'University of Michigan',
+        'Marketing',
+        'Procter & Gamble',
+        'Brand Marketing Manager',
+        'Business',
+        'Mid-Career Professional (3-10 Years)',
+        'Medium',
+        'Experienced in brand strategy, marketing analytics, and cross-functional campaign execution.',
+        'Startup Experience',
+        '1–3 years',
+        3,
+        'Strong for marketing resumes, portfolio storytelling, and brand strategy career paths.',
+        'Cincinnati',
+        'OH',
+        'Available'
+    ),
+    (
+        NULL,
         'ADV-101-0007',
-        'Hassan',
-        'Farooq',
-        'hassan.farooq@example.com',
+        'Idris',
+        'Thompson',
+        'idris.thompson@example.com',
+        '512-555-0107',
+        'https://www.linkedin.com/in/idris-thompson-mock',
         'Male',
         'Georgia Tech',
         'Mechanical Engineering',
@@ -207,21 +309,24 @@ INSERT INTO advisors (
         'Manufacturing Engineer',
         'Engineering',
         'Mid-Career Professional (3-10 Years)',
-        'Low',
-        'Works in manufacturing engineering and supports students interested in hardware and operations.',
-        'Startup Experience',
-        'None',
-        0,
-        'At maximum meeting capacity for this month.',
+        'Medium',
+        'Works in manufacturing engineering, operations improvement, and hardware production systems.',
+        'Remote Work',
+        'Less than 1 year',
+        2,
+        'Helpful for students interested in hardware, manufacturing, and operations roles.',
         'Austin',
         'TX',
-        'Unavailable'
+        'Available'
     ),
     (
+        NULL,
         'ADV-101-0008',
-        'Maryam',
-        'Yusuf',
-        'maryam.yusuf@example.com',
+        'Leena',
+        'Haddad',
+        'leena.haddad@example.com',
+        '617-555-0108',
+        'https://www.linkedin.com/in/leena-haddad-mock',
         'Female',
         'Harvard Graduate School of Education',
         'Education',
@@ -230,20 +335,23 @@ INSERT INTO advisors (
         'Education',
         'Mid-Career Professional (3-10 Years)',
         'High',
-        'Supports students interested in teaching, education nonprofits, and graduate school.',
+        'Supports students interested in teaching, education nonprofits, curriculum programs, and graduate school.',
         'Graduate School',
         '3–5 years',
         4,
-        'Strong for education and nonprofit applicants.',
+        'Strong mentor for education careers and graduate school planning.',
         'Boston',
         'MA',
         'Available'
     ),
     (
+        NULL,
         'ADV-101-0009',
-        'Bilal',
-        'Chaudhry',
-        'bilal.chaudhry@example.com',
+        'Musa',
+        'Bennett',
+        'musa.bennett@example.com',
+        '415-555-0109',
+        'https://www.linkedin.com/in/musa-bennett-mock',
         'Male',
         'Carnegie Mellon University',
         'Information Systems',
@@ -252,20 +360,23 @@ INSERT INTO advisors (
         'Information Technology',
         'Young Professional (0-3 Years)',
         'Medium',
-        'Works in cybersecurity and helps applicants prepare for technical and behavioral interviews.',
+        'Works in cybersecurity operations and helps applicants prepare for technical and behavioral interviews.',
         'Remote Work',
         'Less than 1 year',
         2,
-        'Good for cybersecurity and IT applicants.',
+        'Good for cybersecurity, IT, and technical interview preparation.',
         'Remote',
         'Remote',
         'Available'
     ),
     (
+        NULL,
         'ADV-101-0010',
-        'Aisha',
-        'Diallo',
-        'aisha.diallo@example.com',
+        'Yasmin',
+        'Farooq',
+        'yasmin.farooq@example.com',
+        '703-555-0110',
+        'https://www.linkedin.com/in/yasmin-farooq-mock',
         'Female',
         'Howard University',
         'Social Work',
@@ -274,7 +385,7 @@ INSERT INTO advisors (
         'Social Services',
         'Mid-Career Professional (3-10 Years)',
         'Medium',
-        'Experienced in nonprofit programming, community work, and social services careers.',
+        'Experienced in nonprofit programming, community work, volunteer coordination, and social services careers.',
         'Immigration Journey',
         '1–3 years',
         3,
@@ -282,127 +393,106 @@ INSERT INTO advisors (
         'Alexandria',
         'VA',
         'Available'
-    )
-ON CONFLICT (advisor_code) DO NOTHING;
-
--- ---------------------------------------------------------------------------
--- Advisor contact/link updates
--- ---------------------------------------------------------------------------
-
-UPDATE advisors
-SET
-    phone_number = CASE advisor_code
-        WHEN 'ADV-101-0001' THEN '206-555-0101'
-        WHEN 'ADV-101-0002' THEN '212-555-0102'
-        WHEN 'ADV-101-0003' THEN '513-555-0103'
-        WHEN 'ADV-101-0004' THEN '201-555-0104'
-        WHEN 'ADV-101-0005' THEN '646-555-0105'
-        WHEN 'ADV-101-0006' THEN '312-555-0106'
-        WHEN 'ADV-101-0007' THEN '512-555-0107'
-        WHEN 'ADV-101-0008' THEN '617-555-0108'
-        WHEN 'ADV-101-0009' THEN '415-555-0109'
-        WHEN 'ADV-101-0010' THEN '703-555-0110'
-        ELSE phone_number
-    END,
-    linkedin_url = CASE advisor_code
-        WHEN 'ADV-101-0001' THEN 'https://www.linkedin.com/in/david-johnson-mock'
-        WHEN 'ADV-101-0002' THEN 'https://www.linkedin.com/in/omar-siddiqui-mock'
-        WHEN 'ADV-101-0003' THEN 'https://www.linkedin.com/in/fatima-ali-mock'
-        WHEN 'ADV-101-0004' THEN 'https://www.linkedin.com/in/ahmed-khan-mock'
-        WHEN 'ADV-101-0005' THEN 'https://www.linkedin.com/in/nadia-rahman-mock'
-        WHEN 'ADV-101-0006' THEN 'https://www.linkedin.com/in/layla-hassan-mock'
-        WHEN 'ADV-101-0007' THEN 'https://www.linkedin.com/in/hassan-farooq-mock'
-        WHEN 'ADV-101-0008' THEN 'https://www.linkedin.com/in/maryam-yusuf-mock'
-        WHEN 'ADV-101-0009' THEN 'https://www.linkedin.com/in/bilal-chaudhry-mock'
-        WHEN 'ADV-101-0010' THEN 'https://www.linkedin.com/in/aisha-diallo-mock'
-        ELSE linkedin_url
-    END
-WHERE advisor_code IN (
-    'ADV-101-0001',
-    'ADV-101-0002',
-    'ADV-101-0003',
-    'ADV-101-0004',
-    'ADV-101-0005',
-    'ADV-101-0006',
-    'ADV-101-0007',
-    'ADV-101-0008',
-    'ADV-101-0009',
-    'ADV-101-0010'
-);
-
+    ),
+    (
+        NULL,
+        'ADV-101-0011',
+        'Omar',
+        'Navarro',
+        'omar.navarro@example.com',
+        '305-555-0111',
+        'https://www.linkedin.com/in/omar-navarro-mock',
+        'Male',
+        'University of Miami',
+        'Data Science',
+        'Spotify',
+        'Data Analyst',
+        'Information Technology',
+        'Young Professional (0-3 Years)',
+        'High',
+        'Works with dashboards, experimentation, SQL, and analytics storytelling for product teams.',
+        'Entrepreneurship',
+        'Less than 1 year',
+        3,
+        'Good match for analytics, SQL projects, and early data career planning.',
+        'Miami',
+        'FL',
+        'Available'
+    ),
+    (
+        NULL,
+        'ADV-101-0012',
+        'Fatima',
+        'Brooks',
+        'fatima.brooks@example.com',
+        '404-555-0112',
+        'https://www.linkedin.com/in/fatima-brooks-mock',
+        'Female',
+        'Emory University',
+        'Public Policy',
+        'Civic Bridge',
+        'Policy Associate',
+        'Other',
+        'Mid-Career Professional (3-10 Years)',
+        'Medium',
+        'Works across public policy research, community programs, stakeholder writing, and civic partnerships.',
+        'Career Break',
+        '1–3 years',
+        2,
+        'Helpful for policy, public service, and writing-heavy career paths.',
+        'Atlanta',
+        'GA',
+        'Available'
+    );
 
 -- ---------------------------------------------------------------------------
 -- Advisor Services
+-- Advisors do not have a service_id column; services are connected through advisor_services.
 -- ---------------------------------------------------------------------------
 
 INSERT INTO advisor_services (advisor_id, service_id)
 SELECT a.id, s.id
-FROM advisors a
-JOIN service_types s ON s.name IN ('Resume Review', 'Mock Interview', 'Mentorship Program')
-WHERE a.advisor_code = 'ADV-101-0001'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO advisor_services (advisor_id, service_id)
-SELECT a.id, s.id
-FROM advisors a
-JOIN service_types s ON s.name IN ('Mock Interview', 'Mentorship Program', 'Career Guidance')
-WHERE a.advisor_code = 'ADV-101-0002'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO advisor_services (advisor_id, service_id)
-SELECT a.id, s.id
-FROM advisors a
-JOIN service_types s ON s.name IN ('Resume Review', 'Mentorship Program', 'General Career Advice')
-WHERE a.advisor_code = 'ADV-101-0003'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO advisor_services (advisor_id, service_id)
-SELECT a.id, s.id
-FROM advisors a
-JOIN service_types s ON s.name IN ('Resume Review', 'Mock Interview', 'Mentorship Program')
-WHERE a.advisor_code = 'ADV-101-0004'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO advisor_services (advisor_id, service_id)
-SELECT a.id, s.id
-FROM advisors a
-JOIN service_types s ON s.name IN ('Mentorship Program', 'Resume Review', 'Career Guidance')
-WHERE a.advisor_code = 'ADV-101-0005'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO advisor_services (advisor_id, service_id)
-SELECT a.id, s.id
-FROM advisors a
-JOIN service_types s ON s.name IN ('Resume Review', 'Mock Interview', 'Career Guidance')
-WHERE a.advisor_code = 'ADV-101-0006'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO advisor_services (advisor_id, service_id)
-SELECT a.id, s.id
-FROM advisors a
-JOIN service_types s ON s.name IN ('General Career Advice', 'Mentorship Program')
-WHERE a.advisor_code = 'ADV-101-0007'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO advisor_services (advisor_id, service_id)
-SELECT a.id, s.id
-FROM advisors a
-JOIN service_types s ON s.name IN ('Mentorship Program', 'General Career Advice', 'Career Guidance')
-WHERE a.advisor_code = 'ADV-101-0008'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO advisor_services (advisor_id, service_id)
-SELECT a.id, s.id
-FROM advisors a
-JOIN service_types s ON s.name IN ('Mock Interview', 'Career Guidance')
-WHERE a.advisor_code = 'ADV-101-0009'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO advisor_services (advisor_id, service_id)
-SELECT a.id, s.id
-FROM advisors a
-JOIN service_types s ON s.name IN ('Mentorship Program', 'General Career Advice')
-WHERE a.advisor_code = 'ADV-101-0010'
+FROM (
+    VALUES
+        ('ADV-101-0001', 'Resume Review'),
+        ('ADV-101-0001', 'Mock Interview'),
+        ('ADV-101-0001', 'Mentorship Program'),
+        ('ADV-101-0002', 'Mentorship Program'),
+        ('ADV-101-0002', 'Career Guidance'),
+        ('ADV-101-0002', 'Mock Interview'),
+        ('ADV-101-0003', 'Resume Review'),
+        ('ADV-101-0003', 'Mock Interview'),
+        ('ADV-101-0003', 'Career Guidance'),
+        ('ADV-101-0004', 'Mentorship Program'),
+        ('ADV-101-0004', 'Career Guidance'),
+        ('ADV-101-0004', 'Resume Review'),
+        ('ADV-101-0005', 'Resume Review'),
+        ('ADV-101-0005', 'Career Guidance'),
+        ('ADV-101-0005', 'Mentorship Program'),
+        ('ADV-101-0006', 'Resume Review'),
+        ('ADV-101-0006', 'General Career Advice'),
+        ('ADV-101-0006', 'Career Guidance'),
+        ('ADV-101-0007', 'General Career Advice'),
+        ('ADV-101-0007', 'Mentorship Program'),
+        ('ADV-101-0007', 'Mock Interview'),
+        ('ADV-101-0008', 'Mentorship Program'),
+        ('ADV-101-0008', 'Graduate School Planning'),
+        ('ADV-101-0008', 'General Career Advice'),
+        ('ADV-101-0009', 'Mock Interview'),
+        ('ADV-101-0009', 'Career Guidance'),
+        ('ADV-101-0009', 'Resume Review'),
+        ('ADV-101-0010', 'Mentorship Program'),
+        ('ADV-101-0010', 'General Career Advice'),
+        ('ADV-101-0010', 'Career Guidance'),
+        ('ADV-101-0011', 'Career Guidance'),
+        ('ADV-101-0011', 'Mock Interview'),
+        ('ADV-101-0011', 'Resume Review'),
+        ('ADV-101-0012', 'General Career Advice'),
+        ('ADV-101-0012', 'Resume Review'),
+        ('ADV-101-0012', 'Mentorship Program')
+) AS mapping(advisor_code, service_name)
+JOIN advisors a ON a.advisor_code = mapping.advisor_code
+JOIN service_types s ON s.name = mapping.service_name
 ON CONFLICT DO NOTHING;
 
 -- ---------------------------------------------------------------------------
@@ -411,351 +501,314 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO advisor_expertise (advisor_id, expertise_id)
 SELECT a.id, e.id
-FROM advisors a
-JOIN expertise_areas e ON e.name IN ('Full-Stack Development', 'Interview Coaching', 'Career Transition')
-WHERE a.advisor_code = 'ADV-101-0001'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO advisor_expertise (advisor_id, expertise_id)
-SELECT a.id, e.id
-FROM advisors a
-JOIN expertise_areas e ON e.name IN ('Product Management', 'UX Design', 'Startup Operations')
-WHERE a.advisor_code = 'ADV-101-0002'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO advisor_expertise (advisor_id, expertise_id)
-SELECT a.id, e.id
-FROM advisors a
-JOIN expertise_areas e ON e.name IN ('Marketing Strategy', 'Resume Strategy', 'Project Management')
-WHERE a.advisor_code = 'ADV-101-0003'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO advisor_expertise (advisor_id, expertise_id)
-SELECT a.id, e.id
-FROM advisors a
-JOIN expertise_areas e ON e.name IN ('Financial Analysis', 'Interview Coaching', 'Data Analytics')
-WHERE a.advisor_code = 'ADV-101-0004'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO advisor_expertise (advisor_id, expertise_id)
-SELECT a.id, e.id
-FROM advisors a
-JOIN expertise_areas e ON e.name IN ('Healthcare Administration', 'Engineering Leadership', 'Project Management')
-WHERE a.advisor_code = 'ADV-101-0005'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO advisor_expertise (advisor_id, expertise_id)
-SELECT a.id, e.id
-FROM advisors a
-JOIN expertise_areas e ON e.name IN ('Corporate Law', 'Resume Strategy', 'Interview Coaching')
-WHERE a.advisor_code = 'ADV-101-0006'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO advisor_expertise (advisor_id, expertise_id)
-SELECT a.id, e.id
-FROM advisors a
-JOIN expertise_areas e ON e.name IN ('Engineering Leadership', 'Startup Operations', 'Project Management')
-WHERE a.advisor_code = 'ADV-101-0007'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO advisor_expertise (advisor_id, expertise_id)
-SELECT a.id, e.id
-FROM advisors a
-JOIN expertise_areas e ON e.name IN ('Education Counseling', 'Graduate School Planning', 'Nonprofit Management')
-WHERE a.advisor_code = 'ADV-101-0008'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO advisor_expertise (advisor_id, expertise_id)
-SELECT a.id, e.id
-FROM advisors a
-JOIN expertise_areas e ON e.name IN ('Cybersecurity', 'Interview Coaching', 'Remote Work Strategy')
-WHERE a.advisor_code = 'ADV-101-0009'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO advisor_expertise (advisor_id, expertise_id)
-SELECT a.id, e.id
-FROM advisors a
-JOIN expertise_areas e ON e.name IN ('Nonprofit Management', 'Career Transition', 'Resume Strategy')
-WHERE a.advisor_code = 'ADV-101-0010'
+FROM (
+    VALUES
+        ('ADV-101-0001', 'Software Engineering'),
+        ('ADV-101-0001', 'Full-Stack Development'),
+        ('ADV-101-0001', 'Interview Coaching'),
+        ('ADV-101-0002', 'Product Management'),
+        ('ADV-101-0002', 'UX Design'),
+        ('ADV-101-0002', 'Startup Operations'),
+        ('ADV-101-0003', 'Financial Analysis'),
+        ('ADV-101-0003', 'Resume Strategy'),
+        ('ADV-101-0003', 'Interview Coaching'),
+        ('ADV-101-0004', 'Healthcare Administration'),
+        ('ADV-101-0004', 'Operations Management'),
+        ('ADV-101-0004', 'Resume Strategy'),
+        ('ADV-101-0005', 'Corporate Law'),
+        ('ADV-101-0005', 'Law School Preparation'),
+        ('ADV-101-0005', 'Resume Strategy'),
+        ('ADV-101-0006', 'Marketing Strategy'),
+        ('ADV-101-0006', 'Resume Strategy'),
+        ('ADV-101-0006', 'Career Transition'),
+        ('ADV-101-0007', 'Engineering Leadership'),
+        ('ADV-101-0007', 'Operations Management'),
+        ('ADV-101-0007', 'Interview Coaching'),
+        ('ADV-101-0008', 'Education Counseling'),
+        ('ADV-101-0008', 'Graduate School Planning'),
+        ('ADV-101-0008', 'Nonprofit Management'),
+        ('ADV-101-0009', 'Cybersecurity'),
+        ('ADV-101-0009', 'Remote Work Strategy'),
+        ('ADV-101-0009', 'Interview Coaching'),
+        ('ADV-101-0010', 'Nonprofit Management'),
+        ('ADV-101-0010', 'Career Transition'),
+        ('ADV-101-0010', 'Resume Strategy'),
+        ('ADV-101-0011', 'Data Analytics'),
+        ('ADV-101-0011', 'Interview Coaching'),
+        ('ADV-101-0011', 'Remote Work Strategy'),
+        ('ADV-101-0012', 'Public Policy'),
+        ('ADV-101-0012', 'Nonprofit Management'),
+        ('ADV-101-0012', 'Resume Strategy')
+) AS mapping(advisor_code, expertise_name)
+JOIN advisors a ON a.advisor_code = mapping.advisor_code
+JOIN expertise_areas e ON e.name = mapping.expertise_name
 ON CONFLICT DO NOTHING;
 
 -- ---------------------------------------------------------------------------
 -- Applicants
+-- Every applicant includes identity, contact, school, service, resume, source, location, and status.
 -- ---------------------------------------------------------------------------
 
 INSERT INTO applicants (
+    user_id,
     first_name,
     last_name,
     email,
+    phone_number,
     gender,
+    university,
     major,
     academic_standing,
     industry,
     desired_future_career,
     service_id,
     additional_notes,
-    location_city,
-    location_state,
     resume_url,
     source,
+    location_city,
+    location_state,
     status
 ) VALUES
     (
-        'Yusuf',
-        'Ibrahim',
-        'yusuf.ibrahim@example.com',
-        'Male',
+        NULL,
+        'Zara',
+        'Mahmood',
+        'zara.mahmood@example.com',
+        '732-555-0201',
+        'Female',
+        'Rutgers University',
         'Computer Science',
         'Junior',
         'Information Technology',
         'Software Engineer',
         (SELECT id FROM service_types WHERE name = 'Mock Interview'),
-        'Looking for technical interview preparation and guidance on backend engineering roles.',
+        'Looking for technical interview preparation and backend engineering guidance.',
+        'https://example.com/mock-resumes/zara-mahmood.pdf',
+        'University MSA',
         'Piscataway',
         'NJ',
-        NULL,
-        'University MSA',
         'Pending Review'
     ),
     (
-        'Amira',
+        NULL,
+        'Hamza',
+        'Qureshi',
+        'hamza.qureshi@example.com',
+        '201-555-0202',
+        'Male',
+        'New Jersey Institute of Technology',
+        'Information Systems',
+        'Sophomore',
+        'Information Technology',
+        'Cybersecurity Analyst',
+        (SELECT id FROM service_types WHERE name = 'Career Guidance'),
+        'Needs help choosing cybersecurity projects and finding early internship opportunities.',
+        'https://example.com/mock-resumes/hamza-qureshi.pdf',
+        'Discord',
+        'Newark',
+        'NJ',
+        'Pending Review'
+    ),
+    (
+        NULL,
+        'Lina',
         'Osman',
-        'amira.osman@example.com',
+        'lina.osman@example.com',
+        '212-555-0203',
         'Female',
+        'New York University',
         'Marketing',
         'Masters',
         'Business',
         'Brand Manager',
         (SELECT id FROM service_types WHERE name = 'Resume Review'),
-        'Needs help strengthening resume bullets for marketing roles.',
-        'New Brunswick',
-        'NJ',
-        NULL,
+        'Needs help strengthening marketing resume bullets and campaign impact statements.',
+        'https://example.com/mock-resumes/lina-osman.pdf',
         'LinkedIn',
+        'New York',
+        'NY',
         'Pending Review'
     ),
     (
-        'Bilal',
-        'Chaudhry',
-        'bilal.chaudhry@example.com',
+        NULL,
+        'Faris',
+        'Patel',
+        'faris.patel@example.com',
+        '609-555-0204',
         'Male',
+        'Princeton University',
         'Economics',
         'Senior',
         'Finance',
         'Financial Analyst',
         (SELECT id FROM service_types WHERE name = 'Mentorship Program'),
-        'Interested in investment banking and finance networking.',
-        'Jersey City',
-        'NJ',
-        NULL,
+        'Interested in analyst recruiting, networking, and finance interview preparation.',
+        'https://example.com/mock-resumes/faris-patel.pdf',
         'Friend Referral',
+        'Princeton',
+        'NJ',
         'Pending Review'
     ),
     (
-        'Hana',
-        'Malik',
-        'hana.malik@example.com',
+        NULL,
+        'Amina',
+        'Caldwell',
+        'amina.caldwell@example.com',
+        '646-555-0205',
         'Female',
+        'Columbia University',
         'Health Administration',
         'Masters',
         'Healthcare',
         'Healthcare Operations Manager',
         (SELECT id FROM service_types WHERE name = 'Career Guidance'),
-        'Wants advice on healthcare operations career paths.',
+        'Wants advice on healthcare administration, hospital operations, and leadership pathways.',
+        'https://example.com/mock-resumes/amina-caldwell.pdf',
+        'Career Fair',
         'New York',
         'NY',
-        NULL,
-        'Career Fair',
         'Pending Review'
     ),
     (
-        'Tariq',
-        'Mahmood',
-        'tariq.mahmood@example.com',
+        NULL,
+        'Bilal',
+        'Nguyen',
+        'bilal.nguyen@example.com',
+        '512-555-0206',
         'Male',
-        'Electrical Engineering',
+        'University of Texas at Austin',
+        'Mechanical Engineering',
         'Senior',
         'Engineering',
         'Manufacturing Engineer',
         (SELECT id FROM service_types WHERE name = 'General Career Advice'),
-        'Interested in hardware, manufacturing, and operations roles.',
+        'Interested in hardware, manufacturing systems, and operations engineering roles.',
+        'https://example.com/mock-resumes/bilal-nguyen.pdf',
+        'Discord',
         'Austin',
         'TX',
-        NULL,
-        'Discord',
         'Pending Review'
     ),
     (
-        'Salma',
-        'Diallo',
-        'salma.diallo@example.com',
+        NULL,
+        'Sara',
+        'Ahmed',
+        'sara.ahmed@example.com',
+        '312-555-0207',
         'Female',
+        'University of Illinois Chicago',
         'Political Science',
         'Junior',
         'Law',
         'Corporate Lawyer',
         (SELECT id FROM service_types WHERE name = 'Resume Review'),
         'Preparing for legal internships and law school applications.',
+        'https://example.com/mock-resumes/sara-ahmed.pdf',
+        'Instagram',
         'Chicago',
         'IL',
-        NULL,
-        'Instagram',
         'Pending Review'
     ),
     (
-        'Zain',
-        'Patel',
-        'zain.patel@example.com',
+        NULL,
+        'Taha',
+        'Williams',
+        'taha.williams@example.com',
+        '617-555-0208',
         'Male',
-        'Information Systems',
-        'Sophomore',
-        'Information Technology',
-        'Cybersecurity Analyst',
-        (SELECT id FROM service_types WHERE name = 'Mock Interview'),
-        'Needs a cybersecurity-focused advisor for early career planning.',
-        'Edison',
-        'NJ',
-        NULL,
-        'University MSA',
-        'Pending Review'
-    ),
-    (
-        'Maryam',
-        'Farah',
-        'maryam.farah@example.com',
-        'Female',
+        'Boston University',
         'Education',
         'Senior',
         'Education',
         'Education Program Manager',
         (SELECT id FROM service_types WHERE name = 'Mentorship Program'),
-        'Interested in education nonprofits and graduate school planning.',
+        'Interested in education nonprofits, teaching pathways, and graduate school planning.',
+        'https://example.com/mock-resumes/taha-williams.pdf',
+        'Newsletter',
         'Boston',
         'MA',
-        NULL,
-        'Newsletter',
         'Pending Review'
     ),
     (
-        'Ilyas',
-        'Rahman',
-        'ilyas.rahman@example.com',
-        'Male',
+        NULL,
+        'Mariam',
+        'Castillo',
+        'mariam.castillo@example.com',
+        '929-555-0209',
+        'Female',
+        'CUNY City College',
         'Data Science',
         'Masters',
         'Information Technology',
         'Data Analyst',
-        (SELECT id FROM service_types WHERE name = 'Career Guidance'),
-        'Multiple technology advisors may be suitable; wants help choosing between analytics and software.',
-        'Remote',
-        'Remote',
-        NULL,
+        (SELECT id FROM service_types WHERE name = 'Mock Interview'),
+        'Wants help with analytics interviews, SQL projects, and portfolio presentation.',
+        'https://example.com/mock-resumes/mariam-castillo.pdf',
         'LinkedIn',
+        'New York',
+        'NY',
         'Pending Review'
     ),
     (
-        'Amina',
-        'Qureshi',
-        'amina.qureshi@example.com',
+        NULL,
+        'Noor',
+        'Ramirez',
+        'noor.ramirez@example.com',
+        '703-555-0210',
         'Female',
+        'George Mason University',
         'Social Work',
         'Junior',
         'Social Services',
         'Nonprofit Program Coordinator',
         (SELECT id FROM service_types WHERE name = 'General Career Advice'),
-        'Interested in nonprofit and community service career options.',
+        'Interested in nonprofit work, community service careers, and program coordination.',
+        'https://example.com/mock-resumes/noor-ramirez.pdf',
+        'Community Event',
         'Alexandria',
         'VA',
-        NULL,
-        'Community Event',
         'Pending Review'
     ),
     (
-        'Noor',
-        'Haddad',
-        'noor.haddad@example.com',
-        'Female',
-        'Architecture',
-        'Senior',
-        'Other',
-        'Urban Planner',
-        (SELECT id FROM service_types WHERE name = 'Mentorship Program'),
-        'Uncommon career interest that may only partially match current advisor expertise.',
-        'Philadelphia',
-        'PA',
         NULL,
-        'Friend Referral',
-        'Pending Review'
-    ),
-    (
         'Kareem',
         'Saleh',
         'kareem.saleh@example.com',
+        '305-555-0211',
         'Male',
+        'Florida International University',
         'Business Administration',
         'Freshman',
         'Business',
         'Startup Founder',
         (SELECT id FROM service_types WHERE name = 'Career Guidance'),
         'Early-stage student interested in entrepreneurship and startup operations.',
-        'Princeton',
-        'NJ',
-        NULL,
+        'https://example.com/mock-resumes/kareem-saleh.pdf',
         'Instagram',
+        'Miami',
+        'FL',
         'Pending Review'
-    )
-ON CONFLICT DO NOTHING;
-
--- ---------------------------------------------------------------------------
--- Applicant contact/resume updates
--- ---------------------------------------------------------------------------
-
-UPDATE applicants
-SET
-    phone_number = CASE email
-        WHEN 'yusuf.ibrahim@example.com' THEN '732-555-0201'
-        WHEN 'amira.osman@example.com' THEN '732-555-0202'
-        WHEN 'bilal.chaudhry@example.com' THEN '201-555-0203'
-        WHEN 'hana.malik@example.com' THEN '212-555-0204'
-        WHEN 'tariq.mahmood@example.com' THEN '512-555-0205'
-        WHEN 'salma.diallo@example.com' THEN '312-555-0206'
-        WHEN 'zain.patel@example.com' THEN '732-555-0207'
-        WHEN 'maryam.farah@example.com' THEN '617-555-0208'
-        WHEN 'ilyas.rahman@example.com' THEN '929-555-0209'
-        WHEN 'amina.qureshi@example.com' THEN '703-555-0210'
-        WHEN 'noor.haddad@example.com' THEN '215-555-0211'
-        WHEN 'kareem.saleh@example.com' THEN '609-555-0212'
-        ELSE phone_number
-    END,
-    resume_url = CASE email
-        WHEN 'yusuf.ibrahim@example.com' THEN 'https://example.com/mock-resumes/yusuf-ibrahim.pdf'
-        WHEN 'amira.osman@example.com' THEN 'https://example.com/mock-resumes/amira-osman.pdf'
-        WHEN 'bilal.chaudhry@example.com' THEN 'https://example.com/mock-resumes/bilal-chaudhry.pdf'
-        WHEN 'hana.malik@example.com' THEN 'https://example.com/mock-resumes/hana-malik.pdf'
-        WHEN 'tariq.mahmood@example.com' THEN 'https://example.com/mock-resumes/tariq-mahmood.pdf'
-        WHEN 'salma.diallo@example.com' THEN 'https://example.com/mock-resumes/salma-diallo.pdf'
-        WHEN 'zain.patel@example.com' THEN 'https://example.com/mock-resumes/zain-patel.pdf'
-        WHEN 'maryam.farah@example.com' THEN 'https://example.com/mock-resumes/maryam-farah.pdf'
-        WHEN 'ilyas.rahman@example.com' THEN 'https://example.com/mock-resumes/ilyas-rahman.pdf'
-        WHEN 'amina.qureshi@example.com' THEN 'https://example.com/mock-resumes/amina-qureshi.pdf'
-        WHEN 'noor.haddad@example.com' THEN 'https://example.com/mock-resumes/noor-haddad.pdf'
-        WHEN 'kareem.saleh@example.com' THEN 'https://example.com/mock-resumes/kareem-saleh.pdf'
-        ELSE resume_url
-    END
-WHERE email IN (
-    'yusuf.ibrahim@example.com',
-    'amira.osman@example.com',
-    'bilal.chaudhry@example.com',
-    'hana.malik@example.com',
-    'tariq.mahmood@example.com',
-    'salma.diallo@example.com',
-    'zain.patel@example.com',
-    'maryam.farah@example.com',
-    'ilyas.rahman@example.com',
-    'amina.qureshi@example.com',
-    'noor.haddad@example.com',
-    'kareem.saleh@example.com'
-);
+    ),
+    (
+        NULL,
+        'Layla',
+        'Bennett',
+        'layla.bennett@example.com',
+        '404-555-0212',
+        'Female',
+        'Emory University',
+        'Public Policy',
+        'Senior',
+        'Other',
+        'Policy Analyst',
+        (SELECT id FROM service_types WHERE name = 'Resume Review'),
+        'Needs help framing policy research, writing samples, and public service experience.',
+        'https://example.com/mock-resumes/layla-bennett.pdf',
+        'Career Fair',
+        'Atlanta',
+        'GA',
+        'Pending Review'
+    );
 
 -- ---------------------------------------------------------------------------
 -- Verification Queries
@@ -772,3 +825,28 @@ UNION ALL
 SELECT 'advisor_expertise', COUNT(*) FROM advisor_expertise
 UNION ALL
 SELECT 'applicants', COUNT(*) FROM applicants;
+
+SELECT 'duplicate_applicant_names' AS check_name, first_name, last_name, COUNT(*) AS duplicate_count
+FROM applicants
+WHERE email IN (
+    'zara.mahmood@example.com',
+    'hamza.qureshi@example.com',
+    'lina.osman@example.com',
+    'faris.patel@example.com',
+    'amina.caldwell@example.com',
+    'bilal.nguyen@example.com',
+    'sara.ahmed@example.com',
+    'taha.williams@example.com',
+    'mariam.castillo@example.com',
+    'noor.ramirez@example.com',
+    'kareem.saleh@example.com',
+    'layla.bennett@example.com'
+)
+GROUP BY first_name, last_name
+HAVING COUNT(*) > 1;
+
+SELECT 'duplicate_advisor_names' AS check_name, first_name, last_name, COUNT(*) AS duplicate_count
+FROM advisors
+WHERE advisor_code BETWEEN 'ADV-101-0001' AND 'ADV-101-0012'
+GROUP BY first_name, last_name
+HAVING COUNT(*) > 1;
