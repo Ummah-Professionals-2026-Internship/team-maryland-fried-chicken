@@ -286,6 +286,52 @@ INSERT INTO advisors (
 ON CONFLICT (advisor_code) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
+-- Advisor contact/link updates
+-- ---------------------------------------------------------------------------
+
+UPDATE advisors
+SET
+    phone_number = CASE advisor_code
+        WHEN 'ADV-101-0001' THEN '206-555-0101'
+        WHEN 'ADV-101-0002' THEN '212-555-0102'
+        WHEN 'ADV-101-0003' THEN '513-555-0103'
+        WHEN 'ADV-101-0004' THEN '201-555-0104'
+        WHEN 'ADV-101-0005' THEN '646-555-0105'
+        WHEN 'ADV-101-0006' THEN '312-555-0106'
+        WHEN 'ADV-101-0007' THEN '512-555-0107'
+        WHEN 'ADV-101-0008' THEN '617-555-0108'
+        WHEN 'ADV-101-0009' THEN '415-555-0109'
+        WHEN 'ADV-101-0010' THEN '703-555-0110'
+        ELSE phone_number
+    END,
+    linkedin_url = CASE advisor_code
+        WHEN 'ADV-101-0001' THEN 'https://www.linkedin.com/in/david-johnson-mock'
+        WHEN 'ADV-101-0002' THEN 'https://www.linkedin.com/in/omar-siddiqui-mock'
+        WHEN 'ADV-101-0003' THEN 'https://www.linkedin.com/in/fatima-ali-mock'
+        WHEN 'ADV-101-0004' THEN 'https://www.linkedin.com/in/ahmed-khan-mock'
+        WHEN 'ADV-101-0005' THEN 'https://www.linkedin.com/in/nadia-rahman-mock'
+        WHEN 'ADV-101-0006' THEN 'https://www.linkedin.com/in/layla-hassan-mock'
+        WHEN 'ADV-101-0007' THEN 'https://www.linkedin.com/in/hassan-farooq-mock'
+        WHEN 'ADV-101-0008' THEN 'https://www.linkedin.com/in/maryam-yusuf-mock'
+        WHEN 'ADV-101-0009' THEN 'https://www.linkedin.com/in/bilal-chaudhry-mock'
+        WHEN 'ADV-101-0010' THEN 'https://www.linkedin.com/in/aisha-diallo-mock'
+        ELSE linkedin_url
+    END
+WHERE advisor_code IN (
+    'ADV-101-0001',
+    'ADV-101-0002',
+    'ADV-101-0003',
+    'ADV-101-0004',
+    'ADV-101-0005',
+    'ADV-101-0006',
+    'ADV-101-0007',
+    'ADV-101-0008',
+    'ADV-101-0009',
+    'ADV-101-0010'
+);
+
+
+-- ---------------------------------------------------------------------------
 -- Advisor Services
 -- ---------------------------------------------------------------------------
 
@@ -659,6 +705,57 @@ INSERT INTO applicants (
         'Pending Review'
     )
 ON CONFLICT DO NOTHING;
+
+-- ---------------------------------------------------------------------------
+-- Applicant contact/resume updates
+-- ---------------------------------------------------------------------------
+
+UPDATE applicants
+SET
+    phone_number = CASE email
+        WHEN 'yusuf.ibrahim@example.com' THEN '732-555-0201'
+        WHEN 'amira.osman@example.com' THEN '732-555-0202'
+        WHEN 'bilal.chaudhry@example.com' THEN '201-555-0203'
+        WHEN 'hana.malik@example.com' THEN '212-555-0204'
+        WHEN 'tariq.mahmood@example.com' THEN '512-555-0205'
+        WHEN 'salma.diallo@example.com' THEN '312-555-0206'
+        WHEN 'zain.patel@example.com' THEN '732-555-0207'
+        WHEN 'maryam.farah@example.com' THEN '617-555-0208'
+        WHEN 'ilyas.rahman@example.com' THEN '929-555-0209'
+        WHEN 'amina.qureshi@example.com' THEN '703-555-0210'
+        WHEN 'noor.haddad@example.com' THEN '215-555-0211'
+        WHEN 'kareem.saleh@example.com' THEN '609-555-0212'
+        ELSE phone_number
+    END,
+    resume_url = CASE email
+        WHEN 'yusuf.ibrahim@example.com' THEN 'https://example.com/mock-resumes/yusuf-ibrahim.pdf'
+        WHEN 'amira.osman@example.com' THEN 'https://example.com/mock-resumes/amira-osman.pdf'
+        WHEN 'bilal.chaudhry@example.com' THEN 'https://example.com/mock-resumes/bilal-chaudhry.pdf'
+        WHEN 'hana.malik@example.com' THEN 'https://example.com/mock-resumes/hana-malik.pdf'
+        WHEN 'tariq.mahmood@example.com' THEN 'https://example.com/mock-resumes/tariq-mahmood.pdf'
+        WHEN 'salma.diallo@example.com' THEN 'https://example.com/mock-resumes/salma-diallo.pdf'
+        WHEN 'zain.patel@example.com' THEN 'https://example.com/mock-resumes/zain-patel.pdf'
+        WHEN 'maryam.farah@example.com' THEN 'https://example.com/mock-resumes/maryam-farah.pdf'
+        WHEN 'ilyas.rahman@example.com' THEN 'https://example.com/mock-resumes/ilyas-rahman.pdf'
+        WHEN 'amina.qureshi@example.com' THEN 'https://example.com/mock-resumes/amina-qureshi.pdf'
+        WHEN 'noor.haddad@example.com' THEN 'https://example.com/mock-resumes/noor-haddad.pdf'
+        WHEN 'kareem.saleh@example.com' THEN 'https://example.com/mock-resumes/kareem-saleh.pdf'
+        ELSE resume_url
+    END
+WHERE email IN (
+    'yusuf.ibrahim@example.com',
+    'amira.osman@example.com',
+    'bilal.chaudhry@example.com',
+    'hana.malik@example.com',
+    'tariq.mahmood@example.com',
+    'salma.diallo@example.com',
+    'zain.patel@example.com',
+    'maryam.farah@example.com',
+    'ilyas.rahman@example.com',
+    'amina.qureshi@example.com',
+    'noor.haddad@example.com',
+    'kareem.saleh@example.com'
+);
 
 -- ---------------------------------------------------------------------------
 -- Verification Queries

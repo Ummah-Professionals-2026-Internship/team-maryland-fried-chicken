@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS advisors (
     last_name                   TEXT NOT NULL,
     email                       TEXT,
     phone_number                TEXT,                         -- Added phone number field
+    linkedin_url                TEXT,
     gender                      TEXT,
     alma_mater                  TEXT,
     major                       TEXT,
@@ -232,6 +233,28 @@ INSERT INTO expertise_areas (name) VALUES
     ('Project Management'),
     ('Interior Architecture')
 ON CONFLICT (name) DO NOTHING;
+
+-- ---------------------------------------------------------------------------
+-- Schema patches for existing Supabase databases
+-- ---------------------------------------------------------------------------
+
+ALTER TABLE advisors
+ADD COLUMN IF NOT EXISTS phone_number TEXT;
+
+ALTER TABLE advisors
+ADD COLUMN IF NOT EXISTS linkedin_url TEXT;
+
+ALTER TABLE applicants
+ADD COLUMN IF NOT EXISTS phone_number TEXT;
+
+ALTER TABLE applicants
+ADD COLUMN IF NOT EXISTS university TEXT;
+
+ALTER TABLE applicants
+ADD COLUMN IF NOT EXISTS gender TEXT;
+
+ALTER TABLE applicants
+ADD COLUMN IF NOT EXISTS resume_url TEXT;
 
 -- ---------------------------------------------------------------------------
 -- Verify
