@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { type SupabaseClient } from "@supabase/supabase-js";
+import { getAllAdvisors } from "@/lib/advisorService";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
 type LookupRow = {
@@ -46,6 +47,20 @@ async function upsertLookupValues(
   return (data ?? []) as LookupRow[];
 }
 
+// GET /api/advisors
+// Returns all advisors from the database as a JSON array
+export async function GET() {
+  const { data, error } = await getAllAdvisors();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data);
+}
+
+// POST /api/advisors
+// Stores one public advisor form submission in Supabase
 export async function POST(request: Request) {
   let body: Record<string, unknown>;
 
