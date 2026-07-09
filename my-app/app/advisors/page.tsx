@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import MainLayout from "@/layouts/MainLayout";
 import { type Advisor } from "@/data/advisors";
 
-const fieldOrder = ["Technology", "Marketing", "Finance", "Healthcare", "Legal"];
 
 function getReliabilityStyles(level: string) {
   if (level === "High") {
@@ -114,13 +113,7 @@ export default function AdvisorsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [openFields, setOpenFields] = useState<Record<string, boolean>>({
-    Technology: true,
-    Marketing: true,
-    Finance: true,
-    Healthcare: true,
-    Legal: true,
-  });
+  const [openFields, setOpenFields] = useState<Record<string, boolean>>({});
 
   async function fetchAdvisors() {
     setLoading(true);
@@ -170,6 +163,19 @@ export default function AdvisorsPage() {
     });
   }, [searchQuery, advisors]);
 
+  // Derive categories from actual data so every industry shows up
+  const fieldOrder = useMemo(() => {
+    const seen = new Set<string>();
+    const order: string[] = [];
+    for (const a of advisors) {
+      if (a.field && !seen.has(a.field)) {
+        seen.add(a.field);
+        order.push(a.field);
+      }
+    }
+    return order.sort();
+  }, [advisors]);
+
   const groupedAdvisors = fieldOrder
     .map((field) => ({
       field,
@@ -198,7 +204,7 @@ export default function AdvisorsPage() {
             <p className="text-slate-600 text-sm mt-0.5">
               {loading
                 ? "Loading..."
-                : `${filteredAdvisors.length} advisors across ${fieldOrder.length} fields`}
+                : `${filteredAdvisors.length} advisors across ${groupedAdvisors.length} fields`}
             </p>
           </div>
 
@@ -250,7 +256,7 @@ export default function AdvisorsPage() {
 
             <div className="space-y-4">
               {groupedAdvisors.map((group) => {
-                const isOpen = openFields[group.field];
+                const isOpen = openFields[group.field] !== false;
 
                 return (
                   <div

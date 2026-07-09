@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import MainLayout from "@/layouts/MainLayout";
 import { type Applicant } from "@/components/ui/applicant_table";
 
-const fieldOrder = ["Technology", "Marketing", "Finance", "Healthcare", "Legal"];
 
 // "Yusuf Ibrahim" -> "YI"
 function getInitials(name: string) {
@@ -72,13 +71,7 @@ export default function ApplicantsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [openFields, setOpenFields] = useState<Record<string, boolean>>({
-    Technology: true,
-    Marketing: true,
-    Finance: true,
-    Healthcare: true,
-    Legal: true,
-  });
+  const [openFields, setOpenFields] = useState<Record<string, boolean>>({});
 
   async function fetchApplicants() {
     setLoading(true);
@@ -129,6 +122,19 @@ export default function ApplicantsPage() {
     });
   }, [searchQuery, applicants]);
 
+  // Derive categories from actual data so every industry shows up
+  const fieldOrder = useMemo(() => {
+    const seen = new Set<string>();
+    const order: string[] = [];
+    for (const a of applicants) {
+      if (a.category && !seen.has(a.category)) {
+        seen.add(a.category);
+        order.push(a.category);
+      }
+    }
+    return order.sort();
+  }, [applicants]);
+
   const groupedApplicants = fieldOrder
     .map((field) => ({
       field,
@@ -159,7 +165,7 @@ export default function ApplicantsPage() {
             <p className="text-slate-600 text-sm mt-0.5">
               {loading
                 ? "Loading..."
-                : `${filteredApplicants.length} applicants across ${fieldOrder.length} fields`}
+                : `${filteredApplicants.length} applicants across ${groupedApplicants.length} fields`}
             </p>
           </div>
 
@@ -211,7 +217,7 @@ export default function ApplicantsPage() {
 
             <div className="space-y-4">
               {groupedApplicants.map((group) => {
-                const isOpen = openFields[group.field];
+                const isOpen = openFields[group.field] !== false;
 
                 return (
                   <div
