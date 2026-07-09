@@ -34,6 +34,11 @@ export type Applicant = {
   industryInterest?: string;
   education?: string;
   skills?: string[];
+  gender?: string;
+  university?: string;
+  major?: string;
+  location?: string;
+  additionalNotes?: string;
 };
 type ApplicantGroupProps = {
   category: string;

@@ -1,16 +1,18 @@
 import supabase from "@/supabaseClient";
 
-// Fetch all rows from the applicants table
+// Fetch all rows from the applicants table, including the resolved service name
 export async function getAllApplicants() {
-  const { data, error } = await supabase.from("applicants").select("*");
+  const { data, error } = await supabase
+    .from("applicants")
+    .select("*, service_types(name)");
   return { data, error };
 }
 
-// Fetch a single applicant by their id
+// Fetch a single applicant by their id, including the resolved service name
 export async function getApplicantById(id) {
   const { data, error } = await supabase
     .from("applicants")
-    .select("*")
+    .select("*, service_types(name)")
     .eq("id", id)
     .single();
   return { data, error };
