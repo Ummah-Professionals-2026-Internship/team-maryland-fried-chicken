@@ -19,6 +19,10 @@ function initials(name: string) {
 
 // Maps a raw Supabase applicant row to the Applicant UI type
 function mapApplicant(raw: Record<string, unknown>): Applicant {
+  const city = String(raw.location_city ?? "");
+  const state = String(raw.location_state ?? "");
+  const location = [city, state].filter(Boolean).join(", ") || undefined;
+
   return {
     id: String(raw.id ?? ""),
     name: [raw.first_name, raw.last_name].filter(Boolean).join(" ") || String(raw.name ?? ""),
@@ -36,6 +40,11 @@ function mapApplicant(raw: Record<string, unknown>): Applicant {
     industryInterest: String(raw.industry ?? raw.industryInterest ?? ""),
     education: String(raw.academic_standing ?? raw.education ?? ""),
     skills: Array.isArray(raw.skills) ? raw.skills : [],
+    gender: raw.gender ? String(raw.gender) : undefined,
+    university: raw.university ? String(raw.university) : undefined,
+    major: raw.major ? String(raw.major) : undefined,
+    location,
+    additionalNotes: raw.additional_notes ? String(raw.additional_notes) : undefined,
   };
 }
 
@@ -149,12 +158,38 @@ export default function ApplicantDetailPage() {
                 </h1>
                 <p className="text-zinc-600">{applicant.desiredCareer}</p>
 
-                {applicant.email && (
-                  <p className="mt-2 text-sm text-zinc-500">{applicant.email}</p>
-                )}
-                {applicant.phone && (
-                  <p className="text-sm text-zinc-500">{applicant.phone}</p>
-                )}
+                <div className="mt-3 space-y-1">
+                  {applicant.email && (
+                    <p className="text-sm text-zinc-500">{applicant.email}</p>
+                  )}
+                  {applicant.phone && (
+                    <p className="text-sm text-zinc-500">{applicant.phone}</p>
+                  )}
+                  {applicant.location && (
+                    <p className="text-sm text-zinc-500">{applicant.location}</p>
+                  )}
+                </div>
+
+                <div className="mt-4 space-y-2 border-t border-zinc-100 pt-4">
+                  {applicant.gender && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-500">Gender</span>
+                      <span className="text-zinc-900 font-medium">{applicant.gender}</span>
+                    </div>
+                  )}
+                  {applicant.university && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-500">University</span>
+                      <span className="text-zinc-900 font-medium text-right max-w-[60%]">{applicant.university}</span>
+                    </div>
+                  )}
+                  {applicant.major && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-500">Major</span>
+                      <span className="text-zinc-900 font-medium text-right max-w-[60%]">{applicant.major}</span>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -220,6 +255,18 @@ export default function ApplicantDetailPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Additional Notes card */}
+            {applicant.additionalNotes && (
+              <Card className="border-zinc-200">
+                <CardContent className="p-6">
+                  <h2 className="font-semibold text-zinc-900">Additional Notes</h2>
+                  <p className="mt-3 text-sm text-zinc-600 leading-relaxed">
+                    {applicant.additionalNotes}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* RIGHT COLUMN */}
