@@ -81,7 +81,9 @@ function mapAdvisor(raw: Record<string, unknown>): Advisor {
     company: String(raw.company ?? ""),
     location,
     availability: String(raw.availability_status ?? raw.availability ?? ""),
-    serviceTypes: Array.isArray(raw.serviceTypes) ? raw.serviceTypes : [],
+    serviceTypes: (raw.advisor_services as Array<{ service_types?: { name?: string } }> | null)
+      ?.map(s => s.service_types?.name)
+      .filter(Boolean) as string[] ?? [],
     reliabilityLevel: (raw.reliability_level ?? raw.reliabilityLevel ?? "Medium") as Advisor["reliabilityLevel"],
     specialties: Array.isArray(raw.specialties) ? raw.specialties : [],
     careerPrepDefault: Boolean(raw.careerPrepDefault ?? false),
@@ -93,9 +95,12 @@ function mapAdvisor(raw: Record<string, unknown>): Advisor {
       ? String(raw.created_at).split("T")[0]
       : String(raw.signUpDate ?? ""),
     experienceLevel: String(raw.experience_level ?? raw.experienceLevel ?? ""),
-    areasOfExpertise: Array.isArray(raw.areasOfExpertise) ? raw.areasOfExpertise : [],
+    areasOfExpertise: (raw.advisor_expertise as Array<{ expertise_areas?: { name?: string } }> | null)
+      ?.map(e => e.expertise_areas?.name)
+      .filter(Boolean) as string[] ?? [],
     major: String(raw.major ?? ""),
     university: String(raw.alma_mater ?? raw.university ?? ""),
+    city: String(raw.location_city ?? ""),
     country: String(raw.country ?? ""),
     stateProvince: String(raw.location_state ?? raw.stateProvince ?? ""),
     careerHistorySummary: String(raw.career_history_summary ?? raw.careerHistorySummary ?? ""),

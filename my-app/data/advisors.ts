@@ -24,6 +24,7 @@
   areasOfExpertise: string[];
   major: string;
   university: string;
+  city: string;
   country: string;
   stateProvince: string;
   careerHistorySummary: string;

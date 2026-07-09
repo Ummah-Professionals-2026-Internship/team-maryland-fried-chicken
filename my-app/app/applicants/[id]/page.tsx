@@ -29,7 +29,9 @@ function mapApplicant(raw: Record<string, unknown>): Applicant {
     category: String(raw.industry ?? raw.category ?? ""),
     desiredCareer: String(raw.desired_future_career ?? raw.desiredCareer ?? ""),
     yearsExp: typeof raw.yearsExp === "number" ? raw.yearsExp : undefined,
-    services: Array.isArray(raw.services) ? raw.services : undefined,
+    services: (raw.service_types as { name?: string } | null)?.name
+      ? [(raw.service_types as { name?: string }).name!]
+      : undefined,
     submitted: raw.submission_date
       ? String(raw.submission_date).split("T")[0]
       : String(raw.submitted ?? ""),
@@ -205,14 +207,6 @@ export default function ApplicantDetailPage() {
                     value={applicant.industryInterest}
                   />
                   <Detail label="Education" value={applicant.education} />
-                  <Detail
-                    label="Experience"
-                    value={
-                      applicant.yearsExp != null
-                        ? `${applicant.yearsExp} years`
-                        : undefined
-                    }
-                  />
                 </div>
               </CardContent>
             </Card>
@@ -227,20 +221,6 @@ export default function ApplicantDetailPage() {
                       <span
                         key={s}
                         className="rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700"
-                      >
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-xs text-zinc-500">Skills</p>
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {(applicant.skills ?? []).map((s) => (
-                      <span
-                        key={s}
-                        className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700"
                       >
                         {s}
                       </span>

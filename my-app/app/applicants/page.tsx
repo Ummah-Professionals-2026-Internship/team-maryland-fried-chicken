@@ -52,7 +52,9 @@ function mapApplicant(raw: Record<string, unknown>): Applicant {
     category: String(raw.industry ?? raw.category ?? ""),
     desiredCareer: String(raw.desired_future_career ?? raw.desiredCareer ?? ""),
     yearsExp: typeof raw.yearsExp === "number" ? raw.yearsExp : undefined,
-    services: Array.isArray(raw.services) ? raw.services : undefined,
+    services: (raw.service_types as { name?: string } | null)?.name
+      ? [(raw.service_types as { name?: string }).name!]
+      : undefined,
     submitted: raw.submission_date
       ? String(raw.submission_date).split("T")[0]
       : String(raw.submitted ?? ""),
