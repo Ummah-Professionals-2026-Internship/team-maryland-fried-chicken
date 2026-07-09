@@ -11,6 +11,14 @@ type Tab = "applicant" | "advisor";
 export default function FormsPage() {
   const [tab, setTab] = React.useState<Tab>("applicant");
 
+  // Honor a ?tab=applicant|advisor query param (e.g. from the landing page).
+  React.useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("tab");
+    if (requested === "applicant" || requested === "advisor") {
+      setTab(requested);
+    }
+  }, []);
+
   return (
     <MainLayout>
       <div className="mb-6">
