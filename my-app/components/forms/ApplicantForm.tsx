@@ -54,6 +54,8 @@ export default function ApplicantForm() {
   const [form, setForm] = React.useState<ApplicantFormState>(initialState);
   const [resume, setResume] = React.useState<File | null>(null);
   const [submitted, setSubmitted] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const set = <K extends keyof ApplicantFormState>(
@@ -70,12 +72,48 @@ export default function ApplicantForm() {
     setResume(file);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: POST to /api/applicants once the write endpoint exists.
-    console.log("Applicant submission", { ...form, resume: resume?.name });
-    setSubmitted(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setError(null);
+
+    if (form.services.length === 0) {
+      setError("Please select at least one service type.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/applicants", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...form,
+          resumeName: resume?.name ?? null,
+        }),
+      });
+
+      const result = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(result.error ?? "Unable to submit applicant form.");
+      }
+
+      setSubmitted(true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (submissionError) {
+      setError(
+        submissionError instanceof Error
+          ? submissionError.message
+          : "Unable to submit applicant form.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (submitted) {
@@ -95,6 +133,7 @@ export default function ApplicantForm() {
             setForm(initialState);
             setResume(null);
             setSubmitted(false);
+            setError(null);
           }}
           className="mt-6 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
@@ -281,16 +320,23 @@ export default function ApplicantForm() {
         </Field>
       </FormSection>
 
+      {error ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      ) : null}
+
       <div className="flex items-center justify-between">
         <p className="text-xs text-slate-400">
           All fields marked <span className="text-red-500">*</span> are required
         </p>
         <button
           type="submit"
-          className="rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          disabled={isSubmitting}
+          className="rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           style={{ backgroundColor: "#2F7FA8" }}
         >
-          Submit Application
+          {isSubmitting ? "Submitting..." : "Submit Application"}
         </button>
       </div>
     </form>
