@@ -19,9 +19,11 @@ import {
   TextArea,
   TextField,
 } from "./formPrimitives";
-
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "../ui/collapsible";
-import { useState } from "react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "../ui/collapsible";
 import { Button } from "../ui/button";
 
 type AdvisorFormState = {
@@ -64,30 +66,85 @@ const initialState: AdvisorFormState = {
   additionalNotes: "",
 };
 
+const UNIQUE_CAREER_EXPERIENCE_OPTIONS = [
+  "Career Change",
+  "Graduate School",
+  "Entrepreneurship",
+  "International Career",
+  "Startup Experience",
+  "Leadership Experience",
+  "Career Break",
+  "First-Generation College Student",
+  "Military Experience",
+  "Remote Work",
+  "Immigration Journey",
+] as const;
+
+const MENTORSHIP_EXPERIENCE_LEVELS = [
+  "None",
+  "Less than 1 year",
+  "1–3 years",
+  "3–5 years",
+  "5+ years",
+] as const;
+
 export default function AdvisorForm() {
   const [form, setForm] = React.useState<AdvisorFormState>(initialState);
   const [submitted, setSubmitted] = React.useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-
-  const MENTORSHIP_OPTIONS = [
-    "Career Change", "Graduate School", "Enterpreneurship", "International Career", "Startup Experience", "Leadership Experience", "Career Break", "First-Generation College Student", "Military Experience", "Remote Work", "Immigration Journey"
-  ];
-
-  const MENTORSHIP_EXPERIENCE_LEVELS = [
-    "None", "Less than 1 year", "1-3 years", "3-5 years", "5+ years"
-  ];
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   const set = <K extends keyof AdvisorFormState>(
     key: K,
     value: AdvisorFormState[K],
   ) => setForm((prev) => ({ ...prev, [key]: value }));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: POST to /api/advisors once the write endpoint exists.
-    console.log("Advisor submission", form);
-    setSubmitted(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setError(null);
+
+    const missingFields: string[] = [];
+
+    if (form.almaMaters.length === 0) missingFields.push("Alma Mater(s)");
+    if (form.majors.length === 0) missingFields.push("Major(s)");
+    if (form.services.length === 0) missingFields.push("Service Types");
+
+    if (missingFields.length > 0) {
+      setError(`Please complete: ${missingFields.join(", ")}.`);
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/advisors", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
+      });
+
+      const result = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(result.error ?? "Unable to submit advisor form.");
+      }
+
+      setSubmitted(true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (submissionError) {
+      setError(
+        submissionError instanceof Error
+          ? submissionError.message
+          : "Unable to submit advisor form.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (submitted) {
@@ -106,6 +163,7 @@ export default function AdvisorForm() {
           onClick={() => {
             setForm(initialState);
             setSubmitted(false);
+            setError(null);
           }}
           className="mt-6 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
@@ -116,12 +174,11 @@ export default function AdvisorForm() {
   }
 
   return (
-    
     <form onSubmit={handleSubmit} className="flex flex-col gap-10">
       {/* 1. Personal Information */}
       <FormSection step={1} title="Personal Information">
         <FieldGrid>
-          <Field label="First Name" required labelClassName="text-lg">
+          <Field label="First Name" required htmlFor="advFirstName" labelClassName="text-lg">
             <TextField
               id="advFirstName"
               required
@@ -169,7 +226,7 @@ export default function AdvisorForm() {
             label="Alma Mater(s)"
             required
             hint="Type a university name and press Enter or click +"
-             labelClassName="text-lg"
+            labelClassName="text-lg"
           >
             <ChipInput
               value={form.almaMaters}
@@ -195,7 +252,7 @@ export default function AdvisorForm() {
       {/* 3. Professional Information */}
       <FormSection step={3} title="Professional Information">
         <FieldGrid>
-          <Field label="Employer / Company" required htmlFor="company"  labelClassName="text-lg">
+          <Field label="Employer / Company" required htmlFor="company" labelClassName="text-lg">
             <TextField
               id="company"
               required
@@ -239,7 +296,12 @@ export default function AdvisorForm() {
       {/* 4. Advisor Information */}
       <FormSection step={4} title="Advisor Information">
         <div className="flex flex-col gap-5">
-          <Field label="Service Types" required hint="Select the types of support you are willing to provide to students." labelClassName="text-lg">
+          <Field
+            label="Service Types"
+            required
+            hint="Select the types of support you are willing to provide to students."
+            labelClassName="text-lg"
+          >
             <MultiToggle
               options={ADVISOR_SERVICE_TYPES}
               value={form.services}
@@ -276,100 +338,94 @@ export default function AdvisorForm() {
 
           <Collapsible open={isOpen} onOpenChange={setIsOpen}>
             <CollapsibleTrigger asChild>
-              <Button 
+              <Button
                 type="button"
                 variant="ghost"
-                className="flex w-full items-center justify-between p-0 text-xl   "
-
-                >
-                  <span>Want to help us make even better matches? (Optional)</span>
-                  <ChevronDown
-                    className={`h-4 w-4 transition-transform ${
-                      isOpen ? "rotate-180" : ""
-                    }`}
-                    />
-                </Button>
+                className="flex w-full items-center justify-between p-0 text-xl"
+              >
+                <span>Want to help us make even better matches? (Optional)</span>
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${
+                    isOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-8 pt-4">
-                    <Field
-                      label="Areas of Expertise"
-                      hint="Please narrow down your area of expertise for us and mention any specific skills
-that you implement in your daily work. This information helps us provide more
-relevant advisor recommendations."
- labelClassName="text-lg"
-                    >
-                      <ChipInput
-                        value={form.expertise}
-                        onChange={(next) => set("expertise", next)}
-                        placeholder="Example: Software Engineering, Product Management, Financial Modeling, UX
-Design"
-                        suggestions={EXPERTISE_SUGGESTIONS}
-                      />
-                    </Field>
-                    <Field
-                      label="Career Journey"
-                      hint="Briefly describe your current role and career journey in 2Ã¢â‚¬â€œ3 sentences. This helps
-us understand your professional background."
-                      htmlFor="careerHistorySummary"
-                       labelClassName="text-lg"
-                    >
-                      <TextArea
-                        id="careerHistorySummary"
-                        placeholder="Example: I am currently a Software Engineer at Microsoft with five years of
-experience building cloud applications after completing my Computer Science
-degree."
-                        value={form.careerHistorySummary}
-                        onChange={(e) => set("careerHistorySummary", e.target.value)}
-                      />
-                    </Field>
-                     <Field
-                      label="Unique Career Experiences"
-                      htmlFor="uniqueCareerExperiences"
-                      labelClassName="text-lg"
-                      hint="Have you had any unique career experiences that you would like to share with us?"
-                    >
-                      <MultiToggle
-                        options={MENTORSHIP_OPTIONS}
-                        value={form.uniqueCareerExperiences}
-                        onChange={(next) => set("uniqueCareerExperiences", next)}
-                      />
-                    </Field>
-                    <Field
-                      label="How much prior mentorship or advising experience do you have with Ummah
-Professionals?"
-hint="Select the option that best describes your previous mentoring experience."
-                      htmlFor="mentorshipExperience"
-                       labelClassName="text-lg"
-                    >
-                      <SelectField
-                        id="mentorshipExperience"
-                        required
-                        placeholder="Select Mentorship experience"
-                        options={MENTORSHIP_EXPERIENCE_LEVELS}
-                        value={form.mentorshipExperience}
-                        onChange={(e) => set("mentorshipExperience", e.target.value)}
-                      />
-                    </Field>
-                    <Field label="Additional Notes" 
-                    hint="Is there anything else you would like us to know about your background or
-experience?"
-                    htmlFor="advAdditionalNotes"
-                     labelClassName="text-lg">
-                      <TextArea
-                        id="advAdditionalNotes"
-
-                        placeholder="Share any additional information that may help us understand your professional
-experienc"
-                        value={form.additionalNotes}
-                        onChange={(e) => set("additionalNotes", e.target.value)}
-                      />
-                    </Field>
-
+              <Field
+                label="Areas of Expertise"
+                hint="Please narrow down your area of expertise and mention any specific skills you use in your daily work."
+                labelClassName="text-lg"
+              >
+                <ChipInput
+                  value={form.expertise}
+                  onChange={(next) => set("expertise", next)}
+                  placeholder="Example: Software Engineering, Product Management, Financial Modeling, UX Design"
+                  suggestions={EXPERTISE_SUGGESTIONS}
+                />
+              </Field>
+              <Field
+                label="Career Journey"
+                hint="Briefly describe your current role and career journey in 2-3 sentences. This helps us understand your professional background."
+                htmlFor="careerHistorySummary"
+                labelClassName="text-lg"
+              >
+                <TextArea
+                  id="careerHistorySummary"
+                  placeholder="Example: I am currently a Software Engineer at Microsoft with five years of experience building cloud applications after completing my Computer Science degree."
+                  value={form.careerHistorySummary}
+                  onChange={(e) => set("careerHistorySummary", e.target.value)}
+                />
+              </Field>
+              <Field
+                label="Unique Career Experiences"
+                htmlFor="uniqueCareerExperiences"
+                labelClassName="text-lg"
+                hint="Have you had any unique career experiences that you would like to share with us?"
+              >
+                <MultiToggle
+                  options={UNIQUE_CAREER_EXPERIENCE_OPTIONS}
+                  value={form.uniqueCareerExperiences}
+                  onChange={(next) => set("uniqueCareerExperiences", next)}
+                />
+              </Field>
+              <Field
+                label="How much prior mentorship or advising experience do you have with Ummah Professionals?"
+                hint="Select the option that best describes your previous mentoring experience."
+                htmlFor="mentorshipExperience"
+                labelClassName="text-lg"
+              >
+                <SelectField
+                  id="mentorshipExperience"
+                  placeholder="Select mentorship experience"
+                  options={MENTORSHIP_EXPERIENCE_LEVELS}
+                  value={form.mentorshipExperience}
+                  onChange={(e) => set("mentorshipExperience", e.target.value)}
+                />
+              </Field>
+              <Field
+                label="Additional Notes"
+                hint="Is there anything else you would like us to know about your background or experience?"
+                htmlFor="advAdditionalNotes"
+                labelClassName="text-lg"
+              >
+                <TextArea
+                  id="advAdditionalNotes"
+                  placeholder="Share any additional information that may help us understand your professional experience."
+                  value={form.additionalNotes}
+                  onChange={(e) => set("additionalNotes", e.target.value)}
+                />
+              </Field>
             </CollapsibleContent>
-          
           </Collapsible>
         </div>
       </FormSection>
+
+      {error ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      ) : null}
 
       <div className="flex items-center justify-between">
         <p className="text-xs text-slate-400">
@@ -377,10 +433,11 @@ experienc"
         </p>
         <button
           type="submit"
-          className="rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          disabled={isSubmitting}
+          className="rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           style={{ backgroundColor: "#2F7FA8" }}
         >
-          Submit Advisor Profile
+          {isSubmitting ? "Submitting..." : "Submit Advisor Profile"}
         </button>
       </div>
     </form>
