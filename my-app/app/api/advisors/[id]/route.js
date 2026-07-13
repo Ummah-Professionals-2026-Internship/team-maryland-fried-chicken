@@ -7,6 +7,15 @@ export async function GET(request, { params }) {
   // In Next.js 15+, params is a Promise — we await it to get the actual values
   const { id } = await params;
 
+  // Reject non-UUID values before hitting the database
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(id)) {
+    return NextResponse.json(
+      { error: `Advisor with id "${id}" not found` },
+      { status: 404 }
+    );
+  }
+
   const { data, error } = await getAdvisorById(id);
 
   if (error) {
