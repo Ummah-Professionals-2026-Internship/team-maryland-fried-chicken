@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 export async function POST(request) {
     const supabase = createClient()
 
-    const { error } = await supabase.auth.signOut()
+    const { error } = await supabase.auth.signOut({scope: 'global'})
 
     if (error) {
         return NextResponse.json(
