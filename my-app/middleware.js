@@ -19,7 +19,7 @@ export async function middleware(request) {
     const isApiRequest = currentPath.startsWith('/api/')
 
     // 🔑 THE WHITELIST: Explicitly allow the login page and the login processing endpoint
-    const isPublicRoute = currentPath === '/login' || currentPath === '/api/login' || currentPath === '/forms'
+    const isPublicRoute = currentPath === '/login' || currentPath === '/api/login' || currentPath === '/forms' || currentPath === '/' || currentPath === '/api/applicants' || currentPath === '/api/advisors/'  
 
     // 4. THE AUTHENTICATION SHIELD
     if (!user && !isPublicRoute) {
