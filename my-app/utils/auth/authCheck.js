@@ -4,7 +4,7 @@ export async function verifyAccess(currentPath, requireAdmin, routerReplace) {
 
     // Scenario 1: Any non-200 status (unauthorized, session expired, or bad request)
     if (!res.ok) {
-      routerReplace(`/login?callbackUrl=${encodeURIComponent(currentPath)}`)
+      routerReplace(`/unauthorized`)
       return
     }
 
