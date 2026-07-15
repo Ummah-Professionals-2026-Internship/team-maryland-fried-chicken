@@ -6,41 +6,43 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 
-const navItems = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Submissions", href: "/applicants" },
-  { label: "Advisors", href: "/advisors" },
-  { label: "Forms", href: "/forms" },
-];
+type NavItem = {
+  label: string;
+  href: string;
+};
 
 export default function TopNavigation() {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
-  // Check if user is logged in on mount
+  // Verify authentication state and role profile mapping on navigation changes
   useEffect(() => {
     async function checkAuthStatus() {
       try {
         const response = await fetch("/api/users/me");
         if (response.ok) {
+          const resBody = await response.json();
           setIsLoggedIn(true);
+          setUserRole(resBody.data?.role || "staff"); // Fallback defaults to baseline staff access
         } else {
           setIsLoggedIn(false);
+          setUserRole(null);
         }
       } catch (err) {
         setIsLoggedIn(false);
+        setUserRole(null);
       }
     }
     checkAuthStatus();
-  }, [pathname]); // Re-verify whenever the path changes to keep the state accurate
+  }, [pathname]);
 
   const handleAuthAction = async () => {
-    setMenuOpen(false); // Close mobile drawer if it's open
+    setMenuOpen(false);
 
     if (isLoggedIn) {
-      // 1. Trigger the logout endpoint
       try {
         const response = await fetch("/api/signout", {
           method: "POST",
@@ -48,7 +50,7 @@ export default function TopNavigation() {
 
         if (response.ok) {
           setIsLoggedIn(false);
-          // 2. Redirect to login page WITHOUT callbackUrl
+          setUserRole(null);
           router.push("/login");
         } else {
           console.error("Signout failed");
@@ -57,17 +59,45 @@ export default function TopNavigation() {
         console.error("Error signing out:", err);
       }
     } else {
-      // 3. Redirect to login WITH the current pathname as callbackUrl
       const encodedCallback = encodeURIComponent(pathname);
       router.push(`/login?callbackUrl=${encodedCallback}`);
     }
   };
 
+  // Dynamically compile available navigation links based on user role context
+  const getNavItems = (): NavItem[] => {
+    if (!isLoggedIn) {
+      return [
+        { label: "Landing Page", href: "/" },
+        { label: "Applicant Form", href: "/forms/applicants" },
+        { label: "Advisor Form", href: "/forms/advisors" },
+      ];
+    }
+
+    const baselineProtectedItems = [
+      { label: "Dashboard", href: "/dashboard" },
+      { label: "Applicants", href: "/applicants" },
+      { label: "Advisors", href: "/advisors" },
+      { label: "Matching Engine", href: "/matching-engine" },
+    ];
+
+    if (userRole === "admin") {
+      return [
+        ...baselineProtectedItems,
+        { label: "User Management", href: "/admin/users" },
+      ];
+    }
+
+    return baselineProtectedItems;
+  };
+
+  const activeNavItems = getNavItems();
+
   return (
     <header className="border-b border-slate-200 bg-white">
       <nav className="flex items-center justify-between px-7 py-4">
         {/* Logo Section */}
-        <Link href="/dashboard" className="flex items-center gap-3">
+        <Link href={isLoggedIn ? "/dashboard" : "/"} className="flex items-center gap-3">
           <div className="relative h-10 w-10 overflow-hidden rounded-xl">
             <Image
               src="/images/ummah-logo.png"
@@ -89,9 +119,9 @@ export default function TopNavigation() {
 
         {/* Desktop Navigation Links */}
         <div className="hidden md:flex items-center gap-3">
-          {navItems.map((item) => {
+          {activeNavItems.map((item) => {
             const isActive =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
+              pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
 
             return (
               <Link
@@ -117,7 +147,7 @@ export default function TopNavigation() {
                 : "border-[#2F7FA8] bg-white text-[#2F7FA8] hover:bg-slate-50"
             }`}
           >
-            {isLoggedIn ? "Logout" : "Login"}
+            {isLoggedIn ? "Logout" : "Volunteer Login"}
           </button>
         </div>
 
@@ -134,9 +164,9 @@ export default function TopNavigation() {
       {/* Mobile Menu Dropdown */}
       {menuOpen && (
         <div className="md:hidden flex flex-col gap-1 px-7 pb-4">
-          {navItems.map((item) => {
+          {activeNavItems.map((item) => {
             const isActive =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
+              pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
             return (
               <Link
                 key={item.href}
@@ -162,7 +192,7 @@ export default function TopNavigation() {
                 : "text-slate-900 hover:bg-slate-50"
             }`}
           >
-            {isLoggedIn ? "Logout" : "Login"}
+            {isLoggedIn ? "Logout" : "Volunteer Login"}
           </button>
         </div>
       )}
