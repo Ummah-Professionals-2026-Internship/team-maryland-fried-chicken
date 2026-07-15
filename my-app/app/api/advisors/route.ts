@@ -48,7 +48,6 @@ async function upsertLookupValues(
 }
 
 // GET /api/advisors
-// Returns all advisors from the database as a JSON array
 export async function GET() {
   const { data, error } = await getAllAdvisors();
 
@@ -60,7 +59,6 @@ export async function GET() {
 }
 
 // POST /api/advisors
-// Stores one public advisor form submission in Supabase
 export async function POST(request: Request) {
   let body: Record<string, unknown>;
 
@@ -77,6 +75,8 @@ export async function POST(request: Request) {
   const lastName = getString(body.lastName);
   const email = getString(body.email).toLowerCase();
   const gender = getString(body.gender);
+  const city = getString(body.city);
+  const state = getString(body.state);
   const almaMaters = getStringArray(body.almaMaters);
   const majors = getStringArray(body.majors);
   const company = getString(body.company);
@@ -98,6 +98,8 @@ export async function POST(request: Request) {
     ["Last Name", lastName],
     ["Email", email],
     ["Gender", gender],
+    ["City", city],
+    ["State", state],
     ["Company", company],
     ["Job Title", jobTitle],
     ["Industry", industry],
@@ -151,6 +153,8 @@ export async function POST(request: Request) {
         last_name: lastName,
         email,
         gender,
+        city,
+        state,
         alma_mater: almaMaters.join(", "),
         major: majors.join(", "),
         company,

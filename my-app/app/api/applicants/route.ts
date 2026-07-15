@@ -16,7 +16,6 @@ function getStringArray(value: unknown) {
 }
 
 // GET /api/applicants
-// Returns all applicants from the database as a JSON array
 export async function GET() {
   const { data, error } = await getAllApplicants();
 
@@ -28,7 +27,6 @@ export async function GET() {
 }
 
 // POST /api/applicants
-// Stores one public applicant form submission in Supabase
 export async function POST(request: Request) {
   let body: Record<string, unknown>;
 
@@ -46,6 +44,8 @@ export async function POST(request: Request) {
   const email = getString(body.email).toLowerCase();
   const phone = getString(body.phone);
   const gender = getString(body.gender);
+  const city = getString(body.city);
+  const state = getString(body.state);
   const university = getString(body.university);
   const major = getString(body.major);
   const academicStanding = getString(body.academicStanding);
@@ -60,6 +60,8 @@ export async function POST(request: Request) {
     ["Email", email],
     ["Phone Number", phone],
     ["Gender", gender],
+    ["City", city],
+    ["State", state],
     ["University", university],
     ["Major", major],
     ["Academic Standing", academicStanding],
@@ -133,6 +135,8 @@ export async function POST(request: Request) {
         email,
         phone_number: phone,
         gender,
+        city,
+        state,
         university,
         major,
         academic_standing: academicStanding,
@@ -167,4 +171,4 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
-}
+} 
