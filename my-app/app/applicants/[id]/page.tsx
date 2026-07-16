@@ -3,10 +3,31 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Clock, Sparkles } from "lucide-react";
+import { CheckCircle2, Clock, RotateCcw, Sparkles } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { type Applicant } from "@/components/ui/applicant_table";
+
+// Shape returned by GET /api/applicants/:id/recommendations
+type Recommendation = {
+  advisorId: string;
+  advisorName: string;
+  jobTitle: string;
+  company: string;
+  industry: string;
+  experienceLevel: string;
+  reliabilityLevel: string;
+  matchScore: number;
+  currentMonthlyAssignments: number;
+  maxMonthlyAssignments: number;
+  explanation: string[];
+};
+
+function getReliabilityStyles(level: string) {
+  if (level === "High") return "bg-emerald-50 text-emerald-700";
+  if (level === "Medium") return "bg-amber-50 text-amber-700";
+  return "bg-red-50 text-red-700";
+}
 
 function initials(name: string) {
   return name
@@ -57,10 +78,23 @@ export default function ApplicantDetailPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [recLoading, setRecLoading] = useState(false);
   const [recError, setRecError] = useState<string | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [acceptedIds, setAcceptedIds] = useState<Set<string>>(new Set());
+
+  function handleAccept(advisorId: string) {
+    setAcceptedIds((current) => new Set(current).add(advisorId));
+  }
+
+  function handleUndo(advisorId: string) {
+    setAcceptedIds((current) => {
+      const next = new Set(current);
+      next.delete(advisorId);
+      return next;
+    });
+  }
 
   useEffect(() => {
     async function fetchApplicant() {
@@ -286,13 +320,11 @@ export default function ApplicantDetailPage() {
                     Advisor Recommendations
                   </h2>
                   <p className="text-sm text-zinc-500">
-                    No recommendations generated yet.
+                    {hasGenerated && !recLoading && !recError
+                      ? `${recommendations.length} match${recommendations.length === 1 ? "" : "es"} found`
+                      : "No recommendations generated yet."}
                   </p>
                 </div>
-                {/* <button className="inline-flex items-center gap-2 rounded-lg bg-[#2F7FA8] px-6 py-3 text-base font-medium text-white hover:bg-[#286E92]">
-                  <Sparkles className="h-5 w-5" />
-                  Generate Recommendations
-                </button> */}
                 <button
                   onClick={handleGenerateRecommendations}
                   disabled={recLoading}
@@ -346,18 +378,86 @@ export default function ApplicantDetailPage() {
 
             {!recLoading && !recError && recommendations.length > 0 && (
               <div className="space-y-4">
-                {recommendations.map((rec) => (
-                  <Card key={rec.advisorId} className="border-zinc-200">
-                    <CardContent className="p-6">
-                      <Link href={`/advisors/${rec.advisorId}`} className="font-semibold text-zinc-900 hover:underline">
-                        {rec.advisorName}
-                      </Link>
-                      <p className="text-sm text-zinc-500">{rec.jobTitle} · {rec.company}</p>
-                      {/* TODO: match score, industry, experience level, reliability badge,
-                          monthly assignments, explanation list, Accept/Undo buttons */}
-                    </CardContent>
-                  </Card>
-                ))}
+                {recommendations.map((rec) => {
+                  const isAccepted = acceptedIds.has(rec.advisorId);
+
+                  return (
+                    <Card key={rec.advisorId} className="border-zinc-200">
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <Link
+                              href={`/advisors/${rec.advisorId}`}
+                              className="font-semibold text-zinc-900 hover:underline"
+                            >
+                              {rec.advisorName}
+                            </Link>
+                            <p className="text-sm text-zinc-500">
+                              {rec.jobTitle} · {rec.company}
+                            </p>
+                          </div>
+
+                          <span className="inline-flex shrink-0 items-center rounded-full bg-sky-50 px-3 py-1 text-sm font-semibold text-sky-700">
+                            {rec.matchScore}% match
+                          </span>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+                          <Detail label="Industry" value={rec.industry} />
+                          <Detail label="Experience Level" value={rec.experienceLevel} />
+                          <div>
+                            <p className="text-zinc-500">Reliability</p>
+                            <span
+                              className={`mt-0.5 inline-block rounded px-2 py-0.5 text-xs font-medium ${getReliabilityStyles(
+                                rec.reliabilityLevel,
+                              )}`}
+                            >
+                              {rec.reliabilityLevel}
+                            </span>
+                          </div>
+                          <Detail
+                            label="Monthly Assignments"
+                            value={`${rec.currentMonthlyAssignments} / ${rec.maxMonthlyAssignments}`}
+                          />
+                        </div>
+
+                        {rec.explanation?.length > 0 && (
+                          <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-zinc-600">
+                            {rec.explanation.map((line: string) => (
+                              <li key={line}>{line}</li>
+                            ))}
+                          </ul>
+                        )}
+
+                        <div className="mt-4 flex items-center gap-2 border-t border-zinc-100 pt-4">
+                          {isAccepted ? (
+                            <>
+                              <button
+                                onClick={() => handleUndo(rec.advisorId)}
+                                className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                                Undo
+                              </button>
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Accepted
+                              </span>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => handleAccept(rec.advisorId)}
+                              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                              Accept
+                            </button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </div>
