@@ -51,7 +51,7 @@ export default function TopNavigation() {
         if (response.ok) {
           setIsLoggedIn(false);
           setUserRole(null);
-          router.push("/login");
+          router.push("/");
         } else {
           console.error("Signout failed");
         }
@@ -59,8 +59,12 @@ export default function TopNavigation() {
         console.error("Error signing out:", err);
       }
     } else {
-      const encodedCallback = encodeURIComponent(pathname);
-      router.push(`/login?callbackUrl=${encodedCallback}`);
+      if (pathname === "/") {
+        router.push("/login");
+      } else {
+        const encodedCallback = encodeURIComponent(pathname);
+        router.push(`/login?callbackUrl=${encodedCallback}`);
+      }
     }
   };
 
@@ -78,7 +82,8 @@ export default function TopNavigation() {
       { label: "Dashboard", href: "/dashboard" },
       { label: "Applicants", href: "/applicants" },
       { label: "Advisors", href: "/advisors" },
-      { label: "Matching Engine", href: "/matching-engine" },
+      { label: "Applicant Form", href: "/forms/applicants" },
+      { label: "Advisor Form", href: "/forms/advisors" }
     ];
 
     if (userRole === "admin") {
@@ -127,11 +132,10 @@ export default function TopNavigation() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${
-                  isActive
+                className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${isActive
                     ? "bg-[#2F7FA8] text-white"
                     : "border border-slate-300 bg-white text-slate-900 hover:bg-slate-50"
-                }`}
+                  }`}
               >
                 {item.label}
               </Link>
@@ -141,13 +145,12 @@ export default function TopNavigation() {
           {/* Desktop Authentication Button */}
           <button
             onClick={handleAuthAction}
-            className={`rounded-full px-5 py-2 text-sm font-medium transition-colors border cursor-pointer ${
-              isLoggedIn
+            className={`rounded-full px-5 py-2 text-sm font-medium transition-colors border cursor-pointer ${isLoggedIn
                 ? "border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
                 : "border-[#2F7FA8] bg-white text-[#2F7FA8] hover:bg-slate-50"
-            }`}
+              }`}
           >
-            {isLoggedIn ? "Logout" : "Volunteer Login"}
+            {isLoggedIn ? "Logout" : "Login"}
           </button>
         </div>
 
@@ -172,11 +175,10 @@ export default function TopNavigation() {
                 key={item.href}
                 href={item.href}
                 onClick={() => setMenuOpen(false)}
-                className={`rounded-lg px-4 py-2 text-sm font-medium ${
-                  isActive
+                className={`rounded-lg px-4 py-2 text-sm font-medium ${isActive
                     ? "bg-[#2F7FA8] text-white"
                     : "text-slate-900 hover:bg-slate-50"
-                }`}
+                  }`}
               >
                 {item.label}
               </Link>
@@ -186,11 +188,10 @@ export default function TopNavigation() {
           {/* Mobile Authentication Button */}
           <button
             onClick={handleAuthAction}
-            className={`w-full text-left rounded-lg px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
-              isLoggedIn
+            className={`w-full text-left rounded-lg px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${isLoggedIn
                 ? "text-red-600 hover:bg-red-50"
                 : "text-slate-900 hover:bg-slate-50"
-            }`}
+              }`}
           >
             {isLoggedIn ? "Logout" : "Volunteer Login"}
           </button>
