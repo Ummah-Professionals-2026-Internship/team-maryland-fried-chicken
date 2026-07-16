@@ -82,18 +82,15 @@ export default function ApplicantDetailPage() {
   const [recLoading, setRecLoading] = useState(false);
   const [recError, setRecError] = useState<string | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
-  const [acceptedIds, setAcceptedIds] = useState<Set<string>>(new Set());
+  // Only one advisor can be accepted per applicant at a time.
+  const [acceptedAdvisorId, setAcceptedAdvisorId] = useState<string | null>(null);
 
   function handleAccept(advisorId: string) {
-    setAcceptedIds((current) => new Set(current).add(advisorId));
+    setAcceptedAdvisorId(advisorId);
   }
 
-  function handleUndo(advisorId: string) {
-    setAcceptedIds((current) => {
-      const next = new Set(current);
-      next.delete(advisorId);
-      return next;
-    });
+  function handleUndo() {
+    setAcceptedAdvisorId(null);
   }
 
   useEffect(() => {
@@ -130,6 +127,7 @@ export default function ApplicantDetailPage() {
   async function handleGenerateRecommendations() {
   setRecLoading(true);
   setRecError(null);
+  setAcceptedAdvisorId(null);
 
   try {
       const response = await fetch(`/api/applicants/${id}/recommendations`);
@@ -379,10 +377,14 @@ export default function ApplicantDetailPage() {
             {!recLoading && !recError && recommendations.length > 0 && (
               <div className="space-y-4">
                 {recommendations.map((rec) => {
-                  const isAccepted = acceptedIds.has(rec.advisorId);
+                  const isAccepted = acceptedAdvisorId === rec.advisorId;
+                  const isBlocked = acceptedAdvisorId !== null && !isAccepted;
 
                   return (
-                    <Card key={rec.advisorId} className="border-zinc-200">
+                    <Card
+                      key={rec.advisorId}
+                      className={`border-zinc-200 ${isBlocked ? "opacity-60" : ""}`}
+                    >
                       <CardContent className="p-6">
                         <div className="flex items-start justify-between gap-4">
                           <div>
@@ -433,7 +435,7 @@ export default function ApplicantDetailPage() {
                           {isAccepted ? (
                             <>
                               <button
-                                onClick={() => handleUndo(rec.advisorId)}
+                                onClick={handleUndo}
                                 className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
                               >
                                 <RotateCcw className="h-4 w-4" />
@@ -445,13 +447,22 @@ export default function ApplicantDetailPage() {
                               </span>
                             </>
                           ) : (
-                            <button
-                              onClick={() => handleAccept(rec.advisorId)}
-                              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-                            >
-                              <CheckCircle2 className="h-4 w-4" />
-                              Accept
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleAccept(rec.advisorId)}
+                                disabled={isBlocked}
+                                title={isBlocked ? "Undo the accepted advisor before accepting a different one." : undefined}
+                                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:hover:bg-zinc-300"
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                                Accept
+                              </button>
+                              {isBlocked && (
+                                <span className="text-xs text-zinc-500">
+                                  Another advisor is already accepted for this applicant.
+                                </span>
+                              )}
+                            </>
                           )}
                         </div>
                       </CardContent>
