@@ -5,10 +5,10 @@ import MainLayout from "@/layouts/MainLayout";
 const cards = [
   {
     icon: Users,
-    title: "Volunteer Login",
+    title: "Admin Login",
     description:
-      "Access the volunteer dashboard to manage applicant matches and advisor assignments.",
-    cta: "Volunteer Login",
+      "Access the Admin dashboard to manage applicant matches and advisor assignments.",
+    cta: "Admin Login",
     href: "/dashboard",
   },
   {

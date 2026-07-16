@@ -50,12 +50,17 @@ function mapApplicant(raw: Record<string, unknown>): Applicant {
   };
 }
 
+
 export default function ApplicantDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [applicant, setApplicant] = useState<Applicant | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [recLoading, setRecLoading] = useState(false);
+  const [recError, setRecError] = useState<string | null>(null);
+  const [hasGenerated, setHasGenerated] = useState(false);
 
   useEffect(() => {
     async function fetchApplicant() {
@@ -87,6 +92,28 @@ export default function ApplicantDetailPage() {
 
     fetchApplicant();
   }, [id]);
+
+  async function handleGenerateRecommendations() {
+  setRecLoading(true);
+  setRecError(null);
+
+  try {
+      const response = await fetch(`/api/applicants/${id}/recommendations`);
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error ?? `Server error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setRecommendations(data);
+    } catch (err) {
+      setRecError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setRecLoading(false);
+      setHasGenerated(true);
+    }
+  }
 
   return (
     <MainLayout>
@@ -262,23 +289,77 @@ export default function ApplicantDetailPage() {
                     No recommendations generated yet.
                   </p>
                 </div>
-                <button className="inline-flex items-center gap-2 rounded-lg bg-[#2F7FA8] px-6 py-3 text-base font-medium text-white hover:bg-[#286E92]">
+                {/* <button className="inline-flex items-center gap-2 rounded-lg bg-[#2F7FA8] px-6 py-3 text-base font-medium text-white hover:bg-[#286E92]">
                   <Sparkles className="h-5 w-5" />
                   Generate Recommendations
+                </button> */}
+                <button
+                  onClick={handleGenerateRecommendations}
+                  disabled={recLoading}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#2F7FA8] px-6 py-3 text-base font-medium text-white hover:bg-[#286E92] disabled:opacity-60"
+                >
+                  <Sparkles className="h-5 w-5" />
+                  {recLoading ? "Generating..." : "Generate Recommendations"}
                 </button>
               </CardContent>
             </Card>
+            
 
-            {/* Empty state card */}
-            <Card className="border-zinc-200">
-              <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-                <Sparkles className="h-8 w-8 text-zinc-700" />
-                <p className="mt-4 text-sm bg-zinc-50">
-                  Click &quot;Generate Recommendations&quot; to find the best
-                  advisor matches for this applicant.
-                </p>
-              </CardContent>
-            </Card>
+            {recLoading && (
+              <Card className="border-zinc-200">
+                <CardContent className="p-12 text-center text-sm text-zinc-500">
+                  Finding the best advisor matches...
+                </CardContent>
+              </Card>
+            )}
+
+            {!recLoading && recError && (
+              <Card className="border-red-200 bg-red-50">
+                <CardContent className="p-12 text-center text-sm text-red-700">
+                  {recError}
+                </CardContent>
+              </Card>
+            )}
+
+            {!recLoading && !recError && !hasGenerated && (
+              <Card className="border-zinc-200">
+                <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+                  <Sparkles className="h-8 w-8 text-zinc-700" />
+                  <p className="mt-4 text-sm text-zinc-500">
+                    Click &quot;Generate Recommendations&quot; to find the best
+                    advisor matches for this applicant.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {!recLoading && !recError && hasGenerated && recommendations.length === 0 && (
+              <Card className="border-zinc-200">
+                <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+                  <Sparkles className="h-8 w-8 text-zinc-700" />
+                  <p className="mt-4 text-sm text-zinc-500">
+                    No eligible advisors matched this applicant.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {!recLoading && !recError && recommendations.length > 0 && (
+              <div className="space-y-4">
+                {recommendations.map((rec) => (
+                  <Card key={rec.advisorId} className="border-zinc-200">
+                    <CardContent className="p-6">
+                      <Link href={`/advisors/${rec.advisorId}`} className="font-semibold text-zinc-900 hover:underline">
+                        {rec.advisorName}
+                      </Link>
+                      <p className="text-sm text-zinc-500">{rec.jobTitle} · {rec.company}</p>
+                      {/* TODO: match score, industry, experience level, reliability badge,
+                          monthly assignments, explanation list, Accept/Undo buttons */}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
