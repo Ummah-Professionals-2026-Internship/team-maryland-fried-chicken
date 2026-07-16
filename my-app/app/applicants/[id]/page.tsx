@@ -3,10 +3,31 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Clock, Sparkles } from "lucide-react";
+import { CheckCircle2, Clock, RotateCcw, Sparkles } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { type Applicant } from "@/components/ui/applicant_table";
+
+// Shape returned by GET /api/applicants/:id/recommendations
+type Recommendation = {
+  advisorId: string;
+  advisorName: string;
+  jobTitle: string;
+  company: string;
+  industry: string;
+  experienceLevel: string;
+  reliabilityLevel: string;
+  matchScore: number;
+  currentMonthlyAssignments: number;
+  maxMonthlyAssignments: number;
+  explanation: string[];
+};
+
+function getReliabilityStyles(level: string) {
+  if (level === "High") return "bg-emerald-50 text-emerald-700";
+  if (level === "Medium") return "bg-amber-50 text-amber-700";
+  return "bg-red-50 text-red-700";
+}
 
 function initials(name: string) {
   return name
@@ -50,12 +71,27 @@ function mapApplicant(raw: Record<string, unknown>): Applicant {
   };
 }
 
+
 export default function ApplicantDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [applicant, setApplicant] = useState<Applicant | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [recLoading, setRecLoading] = useState(false);
+  const [recError, setRecError] = useState<string | null>(null);
+  const [hasGenerated, setHasGenerated] = useState(false);
+  // Only one advisor can be accepted per applicant at a time.
+  const [acceptedAdvisorId, setAcceptedAdvisorId] = useState<string | null>(null);
+
+  function handleAccept(advisorId: string) {
+    setAcceptedAdvisorId(advisorId);
+  }
+
+  function handleUndo() {
+    setAcceptedAdvisorId(null);
+  }
 
   useEffect(() => {
     async function fetchApplicant() {
@@ -87,6 +123,29 @@ export default function ApplicantDetailPage() {
 
     fetchApplicant();
   }, [id]);
+
+  async function handleGenerateRecommendations() {
+  setRecLoading(true);
+  setRecError(null);
+  setAcceptedAdvisorId(null);
+
+  try {
+      const response = await fetch(`/api/applicants/${id}/recommendations`);
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error ?? `Server error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setRecommendations(data);
+    } catch (err) {
+      setRecError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setRecLoading(false);
+      setHasGenerated(true);
+    }
+  }
 
   return (
     <MainLayout>
@@ -259,26 +318,159 @@ export default function ApplicantDetailPage() {
                     Advisor Recommendations
                   </h2>
                   <p className="text-sm text-zinc-500">
-                    No recommendations generated yet.
+                    {hasGenerated && !recLoading && !recError
+                      ? `${recommendations.length} match${recommendations.length === 1 ? "" : "es"} found`
+                      : "No recommendations generated yet."}
                   </p>
                 </div>
-                <button className="inline-flex items-center gap-2 rounded-lg bg-[#2F7FA8] px-6 py-3 text-base font-medium text-white hover:bg-[#286E92]">
+                <button
+                  onClick={handleGenerateRecommendations}
+                  disabled={recLoading}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#2F7FA8] px-6 py-3 text-base font-medium text-white hover:bg-[#286E92] disabled:opacity-60"
+                >
                   <Sparkles className="h-5 w-5" />
-                  Generate Recommendations
+                  {recLoading ? "Generating..." : "Generate Recommendations"}
                 </button>
               </CardContent>
             </Card>
+            
 
-            {/* Empty state card */}
-            <Card className="border-zinc-200">
-              <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-                <Sparkles className="h-8 w-8 text-zinc-700" />
-                <p className="mt-4 text-sm bg-zinc-50">
-                  Click &quot;Generate Recommendations&quot; to find the best
-                  advisor matches for this applicant.
-                </p>
-              </CardContent>
-            </Card>
+            {recLoading && (
+              <Card className="border-zinc-200">
+                <CardContent className="p-12 text-center text-sm text-zinc-500">
+                  Finding the best advisor matches...
+                </CardContent>
+              </Card>
+            )}
+
+            {!recLoading && recError && (
+              <Card className="border-red-200 bg-red-50">
+                <CardContent className="p-12 text-center text-sm text-red-700">
+                  {recError}
+                </CardContent>
+              </Card>
+            )}
+
+            {!recLoading && !recError && !hasGenerated && (
+              <Card className="border-zinc-200">
+                <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+                  <Sparkles className="h-8 w-8 text-zinc-700" />
+                  <p className="mt-4 text-sm text-zinc-500">
+                    Click &quot;Generate Recommendations&quot; to find the best
+                    advisor matches for this applicant.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {!recLoading && !recError && hasGenerated && recommendations.length === 0 && (
+              <Card className="border-zinc-200">
+                <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+                  <Sparkles className="h-8 w-8 text-zinc-700" />
+                  <p className="mt-4 text-sm text-zinc-500">
+                    No eligible advisors matched this applicant.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {!recLoading && !recError && recommendations.length > 0 && (
+              <div className="space-y-4">
+                {recommendations.map((rec) => {
+                  const isAccepted = acceptedAdvisorId === rec.advisorId;
+                  const isBlocked = acceptedAdvisorId !== null && !isAccepted;
+
+                  return (
+                    <Card
+                      key={rec.advisorId}
+                      className={`border-zinc-200 ${isBlocked ? "opacity-60" : ""}`}
+                    >
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <Link
+                              href={`/advisors/${rec.advisorId}`}
+                              className="font-semibold text-zinc-900 hover:underline"
+                            >
+                              {rec.advisorName}
+                            </Link>
+                            <p className="text-sm text-zinc-500">
+                              {rec.jobTitle} · {rec.company}
+                            </p>
+                          </div>
+
+                          <span className="inline-flex shrink-0 items-center rounded-full bg-sky-50 px-3 py-1 text-sm font-semibold text-sky-700">
+                            {rec.matchScore}% match
+                          </span>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+                          <Detail label="Industry" value={rec.industry} />
+                          <Detail label="Experience Level" value={rec.experienceLevel} />
+                          <div>
+                            <p className="text-zinc-500">Reliability</p>
+                            <span
+                              className={`mt-0.5 inline-block rounded px-2 py-0.5 text-xs font-medium ${getReliabilityStyles(
+                                rec.reliabilityLevel,
+                              )}`}
+                            >
+                              {rec.reliabilityLevel}
+                            </span>
+                          </div>
+                          <Detail
+                            label="Monthly Assignments"
+                            value={`${rec.currentMonthlyAssignments} / ${rec.maxMonthlyAssignments}`}
+                          />
+                        </div>
+
+                        {rec.explanation?.length > 0 && (
+                          <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-zinc-600">
+                            {rec.explanation.map((line: string) => (
+                              <li key={line}>{line}</li>
+                            ))}
+                          </ul>
+                        )}
+
+                        <div className="mt-4 flex items-center gap-2 border-t border-zinc-100 pt-4">
+                          {isAccepted ? (
+                            <>
+                              <button
+                                onClick={handleUndo}
+                                className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                                Undo
+                              </button>
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Accepted
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleAccept(rec.advisorId)}
+                                disabled={isBlocked}
+                                title={isBlocked ? "Undo the accepted advisor before accepting a different one." : undefined}
+                                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:hover:bg-zinc-300"
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                                Accept
+                              </button>
+                              {isBlocked && (
+                                <span className="text-xs text-zinc-500">
+                                  Another advisor is already accepted for this applicant.
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

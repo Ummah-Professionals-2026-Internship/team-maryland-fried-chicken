@@ -2,6 +2,12 @@ import { createClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 
 export async function middleware(request) {
+    // 🚧 TEMP DEV BYPASS — remove before merging.
+    // Skips all auth checks when NEXT_PUBLIC_BYPASS_AUTH=true in .env
+    if (process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true') {
+        return NextResponse.next({ request: { headers: request.headers } })
+    }
+
     let response = NextResponse.next({
         request: {
             headers: request.headers,
