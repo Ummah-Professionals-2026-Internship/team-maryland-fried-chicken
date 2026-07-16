@@ -17,7 +17,7 @@ const cards = [
     description:
       "Submit your profile to be matched with a professional advisor who can help guide your career.",
     cta: "Applicant Registration Form",
-    href: "/forms?tab=applicant",
+    href: "/forms/applicants",
   },
   {
     icon: UserCheck,
@@ -25,7 +25,7 @@ const cards = [
     description:
       "Join as a volunteer advisor and share your professional experience with aspiring Muslims.",
     cta: "Advisor Registration Form",
-    href: "/forms?tab=advisor",
+    href: "/forms/advisors",
   },
 ];
 

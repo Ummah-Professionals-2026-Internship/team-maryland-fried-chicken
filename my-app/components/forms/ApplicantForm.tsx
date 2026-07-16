@@ -6,7 +6,6 @@ import {
   ACADEMIC_STANDINGS,
   GENDERS,
   INDUSTRIES,
-  SERVICE_TYPES,
 } from "@/data/formOptions";
 import {
   Field,
@@ -20,12 +19,21 @@ import {
 
 const MAX_RESUME_MB = 5;
 
+// Revised service options matching the organization's current offerings
+const REVISED_SERVICE_TYPES = [
+  "Resume Review",
+  "General Career Advice",
+  "Interview Prep",
+] as const;
+
 type ApplicantFormState = {
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
   gender: string;
+  city: string;
+  state: string;
   university: string;
   major: string;
   academicStanding: string;
@@ -41,6 +49,8 @@ const initialState: ApplicantFormState = {
   email: "",
   phone: "",
   gender: "",
+  city: "",
+  state: "",
   university: "",
   major: "",
   academicStanding: "",
@@ -76,8 +86,13 @@ export default function ApplicantForm() {
     e.preventDefault();
     setError(null);
 
-    if (form.services.length === 0) {
-      setError("Please select at least one service type.");
+    const missingFields: string[] = [];
+    if (!form.city.trim()) missingFields.push("City");
+    if (!form.state.trim()) missingFields.push("State");
+    if (form.services.length === 0) missingFields.push("Service Type Requested");
+
+    if (missingFields.length > 0) {
+      setError(`Please complete: ${missingFields.join(", ")}.`);
       return;
     }
 
@@ -207,6 +222,24 @@ export default function ApplicantForm() {
               onChange={(e) => set("gender", e.target.value)}
             />
           </Field>
+          <Field label="City" required htmlFor="city">
+            <TextField
+              id="city"
+              required
+              placeholder="e.g. Raleigh"
+              value={form.city}
+              onChange={(e) => set("city", e.target.value)}
+            />
+          </Field>
+          <Field label="State" required htmlFor="state">
+            <TextField
+              id="state"
+              required
+              placeholder="e.g. NC"
+              value={form.state}
+              onChange={(e) => set("state", e.target.value)}
+            />
+          </Field>
         </FieldGrid>
       </FormSection>
 
@@ -304,7 +337,7 @@ export default function ApplicantForm() {
           hint="Select all that apply"
         >
           <MultiToggle
-            options={SERVICE_TYPES}
+            options={REVISED_SERVICE_TYPES}
             value={form.services}
             onChange={(next) => set("services", next)}
           />

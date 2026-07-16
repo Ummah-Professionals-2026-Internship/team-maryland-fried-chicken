@@ -3,7 +3,6 @@
 import * as React from "react";
 import { CheckCircle2, ChevronDown } from "lucide-react";
 import {
-  ADVISOR_SERVICE_TYPES,
   EXPERIENCE_LEVELS,
   EXPERTISE_SUGGESTIONS,
   GENDERS,
@@ -26,11 +25,20 @@ import {
 } from "../ui/collapsible";
 import { Button } from "../ui/button";
 
+// Revised Option Set removing Healthcare and Mentorship
+const ADVISOR_SERVICE_TYPES = [
+  "Resume Review",
+  "General Career Advice",
+  "Interview Prep",
+] as const;
+
 type AdvisorFormState = {
   firstName: string;
   lastName: string;
   email: string;
   gender: string;
+  city: string;
+  state: string;
   almaMaters: string[];
   majors: string[];
   company: string;
@@ -51,6 +59,8 @@ const initialState: AdvisorFormState = {
   lastName: "",
   email: "",
   gender: "",
+  city: "",
+  state: "",
   almaMaters: [],
   majors: [],
   company: "",
@@ -86,7 +96,7 @@ const MENTORSHIP_EXPERIENCE_LEVELS = [
   "1–3 years",
   "3–5 years",
   "5+ years",
-] as const;
+ ] as const;
 
 export default function AdvisorForm() {
   const [form, setForm] = React.useState<AdvisorFormState>(initialState);
@@ -106,6 +116,8 @@ export default function AdvisorForm() {
 
     const missingFields: string[] = [];
 
+    if (!form.city.trim()) missingFields.push("City");
+    if (!form.state.trim()) missingFields.push("State");
     if (form.almaMaters.length === 0) missingFields.push("Alma Mater(s)");
     if (form.majors.length === 0) missingFields.push("Major(s)");
     if (form.services.length === 0) missingFields.push("Service Types");
@@ -214,6 +226,24 @@ export default function AdvisorForm() {
               options={GENDERS}
               value={form.gender}
               onChange={(e) => set("gender", e.target.value)}
+            />
+          </Field>
+          <Field label="City" required htmlFor="advCity" labelClassName="text-lg">
+            <TextField
+              id="advCity"
+              required
+              placeholder="e.g. Raleigh"
+              value={form.city}
+              onChange={(e) => set("city", e.target.value)}
+            />
+          </Field>
+          <Field label="State" required htmlFor="advState" labelClassName="text-lg">
+            <TextField
+              id="advState"
+              required
+              placeholder="e.g. NC"
+              value={form.state}
+              onChange={(e) => set("state", e.target.value)}
             />
           </Field>
         </FieldGrid>

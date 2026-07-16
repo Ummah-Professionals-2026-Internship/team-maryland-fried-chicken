@@ -1,7 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 
-export async function middleware(request) {
+export async function proxy(request) {
     // 🚧 TEMP DEV BYPASS — remove before merging.
     // Skips all auth checks when NEXT_PUBLIC_BYPASS_AUTH=true in .env
     if (process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true') {
@@ -25,7 +25,7 @@ export async function middleware(request) {
     const isApiRequest = currentPath.startsWith('/api/')
 
     // 🔑 THE WHITELIST: Explicitly allow the login page and the login processing endpoint
-    const isPublicRoute = currentPath === '/login' || currentPath === '/api/login' || currentPath === '/forms' || currentPath === '/' || currentPath === '/api/applicants' || currentPath === '/api/advisors/'  
+    const isPublicRoute = currentPath === '/login' || currentPath === '/api/login' || currentPath === '/forms' || currentPath === '/' || currentPath === '/api/applicants' || currentPath === '/api/advisors/'  || currentPath === '/forms/applicants' || currentPath.startsWith('/forms/advisors/')
 
     // 4. THE AUTHENTICATION SHIELD
     if (!user && !isPublicRoute) {
