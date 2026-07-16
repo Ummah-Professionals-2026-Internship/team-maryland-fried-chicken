@@ -3,8 +3,12 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { Check, Pencil, X } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { type Advisor } from "@/data/advisors";
+
+const AVAILABILITY_OPTIONS = ["Available", "Unavailable"] as const;
+const RELIABILITY_OPTIONS = ["High", "Medium", "Low"] as const;
 
 const NotProvided = () => (
   <span className="text-sm italic text-slate-400">Not Provided</span>
@@ -191,6 +195,64 @@ export default function AdvisorProfilePage() {
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [draftAvailability, setDraftAvailability] = useState<string>("");
+  const [draftReliability, setDraftReliability] = useState<string>("");
+
+  function handleStartEdit() {
+    if (!advisor) return;
+    setDraftAvailability(advisor.availability);
+    setDraftReliability(advisor.reliabilityLevel);
+    setEditError(null);
+    setIsEditing(true);
+  }
+
+  function handleCancelEdit() {
+    setIsEditing(false);
+    setEditError(null);
+  }
+
+  async function handleSaveEdit() {
+    setSavingEdit(true);
+    setEditError(null);
+
+    try {
+      const response = await fetch(`/api/advisors/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          availability_status: draftAvailability,
+          reliability_level: draftReliability,
+        }),
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error ?? `Server error: ${response.status}`);
+      }
+
+      const updated = await response.json();
+
+      setAdvisor((current) =>
+        current
+          ? {
+              ...current,
+              availability: updated.availability_status ?? draftAvailability,
+              reliabilityLevel:
+                (updated.reliability_level ?? draftReliability) as Advisor["reliabilityLevel"],
+            }
+          : current,
+      );
+      setIsEditing(false);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
   useEffect(() => {
     async function fetchAdvisor() {
       setLoading(true);
@@ -286,29 +348,104 @@ export default function AdvisorProfilePage() {
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <h1 className="text-lg font-bold text-zinc-900">{advisor.name}</h1>
-                  <p className="mt-0.5 text-sm text-slate-500">
-                    {advisor.jobTitle} · {advisor.company}
-                  </p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h1 className="text-lg font-bold text-zinc-900">{advisor.name}</h1>
+                      <p className="mt-0.5 text-sm text-slate-500">
+                        {advisor.jobTitle} · {advisor.company}
+                      </p>
+                    </div>
 
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                      <CheckIcon />
-                      {advisor.availability}
-                    </span>
-
-                    <span
-                      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${getReliabilityStyles(
-                        advisor.reliabilityLevel
-                      )}`}
-                    >
-                      {advisor.reliabilityLevel}
-                    </span>
-
-                    <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                      Career Prep Default: {advisor.careerPrepDefault ? "Yes" : "No"}
-                    </span>
+                    {!isEditing && (
+                      <button
+                        onClick={handleStartEdit}
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Edit
+                      </button>
+                    )}
                   </div>
+
+                  {!isEditing ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                        <CheckIcon />
+                        {advisor.availability}
+                      </span>
+
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${getReliabilityStyles(
+                          advisor.reliabilityLevel
+                        )}`}
+                      >
+                        {advisor.reliabilityLevel}
+                      </span>
+
+                      <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                        Career Prep Default: {advisor.careerPrepDefault ? "Yes" : "No"}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="mt-3 space-y-3">
+                      <div className="flex flex-wrap gap-4">
+                        <label className="text-sm">
+                          <span className="mb-1 block text-xs text-slate-500">Availability</span>
+                          <select
+                            value={draftAvailability}
+                            onChange={(e) => setDraftAvailability(e.target.value)}
+                            disabled={savingEdit}
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-zinc-900"
+                          >
+                            {AVAILABILITY_OPTIONS.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label className="text-sm">
+                          <span className="mb-1 block text-xs text-slate-500">Reliability Level</span>
+                          <select
+                            value={draftReliability}
+                            onChange={(e) => setDraftReliability(e.target.value)}
+                            disabled={savingEdit}
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-zinc-900"
+                          >
+                            {RELIABILITY_OPTIONS.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+
+                      {editError && (
+                        <p className="text-xs font-medium text-red-600">{editError}</p>
+                      )}
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleSaveEdit}
+                          disabled={savingEdit}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          {savingEdit ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          onClick={handleCancelEdit}
+                          disabled={savingEdit}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
