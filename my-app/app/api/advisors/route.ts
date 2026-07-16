@@ -75,8 +75,11 @@ export async function POST(request: Request) {
   const lastName = getString(body.lastName);
   const email = getString(body.email).toLowerCase();
   const gender = getString(body.gender);
-  const city = getString(body.city);
-  const state = getString(body.state);
+
+  // Location fields
+  const locationCity = getString(body.location_city || body.city);
+  const locationState = getString(body.location_state || body.state);
+
   const almaMaters = getStringArray(body.almaMaters);
   const majors = getStringArray(body.majors);
   const company = getString(body.company);
@@ -98,8 +101,8 @@ export async function POST(request: Request) {
     ["Last Name", lastName],
     ["Email", email],
     ["Gender", gender],
-    ["City", city],
-    ["State", state],
+    ["City", locationCity],
+    ["State", locationState],
     ["Company", company],
     ["Job Title", jobTitle],
     ["Industry", industry],
@@ -153,8 +156,11 @@ export async function POST(request: Request) {
         last_name: lastName,
         email,
         gender,
-        city,
-        state,
+
+        // Updated location columns
+        location_city: locationCity,
+        location_state: locationState,
+
         alma_mater: almaMaters.join(", "),
         major: majors.join(", "),
         company,
@@ -172,10 +178,17 @@ export async function POST(request: Request) {
       .single();
 
     if (advisorError) {
-      return NextResponse.json({ error: advisorError.message }, { status: 500 });
+      return NextResponse.json(
+        { error: advisorError.message },
+        { status: 500 },
+      );
     }
 
-    const serviceRows = await upsertLookupValues(supabase, "service_types", services);
+    const serviceRows = await upsertLookupValues(
+      supabase,
+      "service_types",
+      services,
+    );
 
     if (serviceRows.length > 0) {
       const { error: advisorServicesError } = await supabase

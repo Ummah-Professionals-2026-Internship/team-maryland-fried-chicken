@@ -44,8 +44,11 @@ export async function POST(request: Request) {
   const email = getString(body.email).toLowerCase();
   const phone = getString(body.phone);
   const gender = getString(body.gender);
-  const city = getString(body.city);
-  const state = getString(body.state);
+
+  // Location fields
+  const locationCity = getString(body.location_city || body.city);
+  const locationState = getString(body.location_state || body.state);
+
   const university = getString(body.university);
   const major = getString(body.major);
   const academicStanding = getString(body.academicStanding);
@@ -60,8 +63,8 @@ export async function POST(request: Request) {
     ["Email", email],
     ["Phone Number", phone],
     ["Gender", gender],
-    ["City", city],
-    ["State", state],
+    ["City", locationCity],
+    ["State", locationState],
     ["University", university],
     ["Major", major],
     ["Academic Standing", academicStanding],
@@ -107,11 +110,13 @@ export async function POST(request: Request) {
     }
 
     const selectedService = services[0];
-    const { data: serviceType, error: serviceTypeError } = await supabase
-      .from("service_types")
-      .select("id")
-      .eq("name", selectedService)
-      .maybeSingle();
+
+    const { data: serviceType, error: serviceTypeError } =
+      await supabase
+        .from("service_types")
+        .select("id")
+        .eq("name", selectedService)
+        .maybeSingle();
 
     if (serviceTypeError) {
       return NextResponse.json(
@@ -127,27 +132,31 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data: applicant, error: applicantError } = await supabase
-      .from("applicants")
-      .insert({
-        first_name: firstName,
-        last_name: lastName,
-        email,
-        phone_number: phone,
-        gender,
-        city,
-        state,
-        university,
-        major,
-        academic_standing: academicStanding,
-        desired_future_career: desiredFutureCareer,
-        industry,
-        service_id: serviceType.id,
-        additional_notes: additionalNotes || null,
-        source: "Public Applicant Form",
-      })
-      .select("id")
-      .single();
+    const { data: applicant, error: applicantError } =
+      await supabase
+        .from("applicants")
+        .insert({
+          first_name: firstName,
+          last_name: lastName,
+          email,
+          phone_number: phone,
+          gender,
+
+          // Updated location columns
+          location_city: locationCity,
+          location_state: locationState,
+
+          university,
+          major,
+          academic_standing: academicStanding,
+          desired_future_career: desiredFutureCareer,
+          industry,
+          service_id: serviceType.id,
+          additional_notes: additionalNotes || null,
+          source: "Public Applicant Form",
+        })
+        .select("id")
+        .single();
 
     if (applicantError) {
       return NextResponse.json(
@@ -157,7 +166,10 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { applicantId: applicant.id, message: "Applicant submitted successfully." },
+      {
+        applicantId: applicant.id,
+        message: "Applicant submitted successfully.",
+      },
       { status: 201 },
     );
   } catch (error) {
@@ -171,4 +183,4 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
-} 
+}
