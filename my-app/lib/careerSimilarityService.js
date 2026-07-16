@@ -105,7 +105,9 @@ Respond with ONLY a JSON object in this exact format, no other text:
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      // gemini-2.5-flash stopped accepting new API keys ahead of its Oct 2026
+      // shutdown; gemini-3.5-flash is the current stable flagship model.
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
