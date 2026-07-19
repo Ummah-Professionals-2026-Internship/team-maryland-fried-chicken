@@ -18,6 +18,13 @@ type Recommendation = {
   experienceLevel: string;
   reliabilityLevel: string;
   matchScore: number;
+  totalScore: number;
+  careerScore: number;
+  industryScore: number;
+  experienceScore: number;
+  genderBonus: number;
+  capacityAdjustment: number;
+  careerSimilarity: string;
   currentMonthlyAssignments: number;
   maxMonthlyAssignments: number;
   explanation: string[];
