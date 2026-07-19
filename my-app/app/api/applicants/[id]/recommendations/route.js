@@ -13,8 +13,8 @@ export async function GET(request, { params }) {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!uuidRegex.test(id)) {
     return NextResponse.json(
-      { error: `Applicant with id "${id}" not found` },
-      { status: 404 },
+      { error: "Invalid applicant ID." },
+      { status: 400 },
     );
   }
 
@@ -34,9 +34,9 @@ export async function GET(request, { params }) {
 
   try {
     // generateRecommendations() only returns scoring fields + advisorId/name/jobTitle
-    // (see lib/recommendationEngine.js) — enrich each entry with the display
+    // (see lib/recommendationEngine.js) -- enrich each entry with the display
     // fields the UI needs (company, industry, reliability, capacity).
-    const ranked = await generateRecommendations(id);
+    const ranked = await generateRecommendations(id, { limit: 5 });
 
     const { data: advisors, error: advisorsError } = await getAllAdvisors();
     if (advisorsError) throw new Error(advisorsError.message);
