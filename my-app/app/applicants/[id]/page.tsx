@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, Clock, Sparkles } from "lucide-react";
+import { CheckCircle2, Clock, RotateCcw, Sparkles } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { type Applicant } from "@/components/ui/applicant_table";
@@ -86,6 +86,7 @@ export default function ApplicantDetailPage() {
   const [acceptedAdvisorId, setAcceptedAdvisorId] = useState<string | null>(null);
   const [acceptingAdvisorId, setAcceptingAdvisorId] = useState<string | null>(null);
   const [acceptError, setAcceptError] = useState<string | null>(null);
+  const [isUndoing, setIsUndoing] = useState(false);
 
   async function handleAccept(rec: Recommendation, rankPosition: number) {
     setAcceptingAdvisorId(rec.advisorId);
@@ -126,6 +127,47 @@ export default function ApplicantDetailPage() {
       );
     } finally {
       setAcceptingAdvisorId(null);
+    }
+  }
+
+  async function handleUndo() {
+    setIsUndoing(true);
+    setAcceptError(null);
+
+    try {
+      const response = await fetch(
+        `/api/applicants/${id}/recommendations/undo`,
+        {
+          method: "POST",
+        },
+      );
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(body.error ?? `Server error: ${response.status}`);
+      }
+
+      setAcceptedAdvisorId(null);
+      setApplicant((current) =>
+        current
+          ? {
+              ...current,
+              status: "Recommendations Generated",
+            }
+          : current,
+      );
+      setRecommendations([]);
+      setHasGenerated(false);
+      setRecError(null);
+    } catch (err) {
+      setAcceptError(
+        err instanceof Error
+          ? err.message
+          : "Failed to undo accepted recommendation.",
+      );
+    } finally {
+      setIsUndoing(false);
     }
   }
 
@@ -370,6 +412,17 @@ export default function ApplicantDetailPage() {
                       : "No recommendations generated yet."}
                   </p>
                 </div>
+                {applicant.status === "Matched" && (
+                  <button
+                    onClick={handleUndo}
+                    disabled={isUndoing}
+                    className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-6 py-3 text-base font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <RotateCcw className="h-5 w-5" />
+                    {isUndoing ? "Undoing..." : "Undo Match"}
+                  </button>
+                )}
+
                 <button
                   onClick={handleGenerateRecommendations}
                   disabled={recLoading || applicant.status === "Matched"}
