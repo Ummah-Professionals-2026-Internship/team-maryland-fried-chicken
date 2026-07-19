@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, Clock, RotateCcw, Sparkles } from "lucide-react";
+import { CheckCircle2, Clock, Sparkles } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { type Applicant } from "@/components/ui/applicant_table";
@@ -84,13 +84,49 @@ export default function ApplicantDetailPage() {
   const [hasGenerated, setHasGenerated] = useState(false);
   // Only one advisor can be accepted per applicant at a time.
   const [acceptedAdvisorId, setAcceptedAdvisorId] = useState<string | null>(null);
+  const [acceptingAdvisorId, setAcceptingAdvisorId] = useState<string | null>(null);
+  const [acceptError, setAcceptError] = useState<string | null>(null);
 
-  function handleAccept(advisorId: string) {
-    setAcceptedAdvisorId(advisorId);
-  }
+  async function handleAccept(rec: Recommendation, rankPosition: number) {
+    setAcceptingAdvisorId(rec.advisorId);
+    setAcceptError(null);
 
-  function handleUndo() {
-    setAcceptedAdvisorId(null);
+    try {
+      const response = await fetch(
+        `/api/applicants/${id}/recommendations/accept`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            advisorId: rec.advisorId,
+            matchScore: rec.matchScore,
+            rankPosition,
+            explanation: rec.explanation,
+          }),
+        },
+      );
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(body.error ?? `Server error: ${response.status}`);
+      }
+
+      setAcceptedAdvisorId(rec.advisorId);
+      setApplicant((current) =>
+        current ? { ...current, status: "Matched" } : current,
+      );
+    } catch (err) {
+      setAcceptError(
+        err instanceof Error
+          ? err.message
+          : "Failed to accept recommendation.",
+      );
+    } finally {
+      setAcceptingAdvisorId(null);
+    }
   }
 
   useEffect(() => {
@@ -127,6 +163,7 @@ export default function ApplicantDetailPage() {
   async function handleGenerateRecommendations() {
   setRecLoading(true);
   setRecError(null);
+  setAcceptError(null);
   setAcceptedAdvisorId(null);
 
   try {
@@ -208,9 +245,19 @@ export default function ApplicantDetailPage() {
                   <span className="flex h-14 w-14 items-center justify-center rounded-full bg-sky-100 text-sky-700 text-lg font-semibold">
                     {initials(applicant.name)}
                   </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">
-                    <Clock className="h-3.5 w-3.5" />
-                    Awaiting Match
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
+                      applicant.status === "Matched"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-amber-50 text-amber-700"
+                    }`}
+                  >
+                    {applicant.status === "Matched" ? (
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    ) : (
+                      <Clock className="h-3.5 w-3.5" />
+                    )}
+                    {applicant.status === "Matched" ? "Matched" : "Awaiting Match"}
                   </span>
                 </div>
 
@@ -325,7 +372,7 @@ export default function ApplicantDetailPage() {
                 </div>
                 <button
                   onClick={handleGenerateRecommendations}
-                  disabled={recLoading}
+                  disabled={recLoading || applicant.status === "Matched"}
                   className="inline-flex items-center gap-2 rounded-lg bg-[#2F7FA8] px-6 py-3 text-base font-medium text-white hover:bg-[#286E92] disabled:opacity-60"
                 >
                   <Sparkles className="h-5 w-5" />
@@ -347,6 +394,14 @@ export default function ApplicantDetailPage() {
               <Card className="border-red-200 bg-red-50">
                 <CardContent className="p-12 text-center text-sm text-red-700">
                   {recError}
+                </CardContent>
+              </Card>
+            )}
+
+            {!recLoading && acceptError && (
+              <Card className="border-red-200 bg-red-50">
+                <CardContent className="p-4 text-center text-sm text-red-700">
+                  {acceptError}
                 </CardContent>
               </Card>
             )}
@@ -373,10 +428,9 @@ export default function ApplicantDetailPage() {
                 </CardContent>
               </Card>
             )}
-
-            {!recLoading && !recError && recommendations.length > 0 && (
+{!recLoading && !recError && recommendations.length > 0 && (
               <div className="space-y-4">
-                {recommendations.map((rec) => {
+                {recommendations.map((rec, index) => {
                   const isAccepted = acceptedAdvisorId === rec.advisorId;
                   const isBlocked = acceptedAdvisorId !== null && !isAccepted;
 
@@ -433,29 +487,22 @@ export default function ApplicantDetailPage() {
 
                         <div className="mt-4 flex items-center gap-2 border-t border-zinc-100 pt-4">
                           {isAccepted ? (
-                            <>
-                              <button
-                                onClick={handleUndo}
-                                className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-                              >
-                                <RotateCcw className="h-4 w-4" />
-                                Undo
-                              </button>
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                Accepted
-                              </span>
-                            </>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              Accepted
+                            </span>
                           ) : (
                             <>
                               <button
-                                onClick={() => handleAccept(rec.advisorId)}
-                                disabled={isBlocked}
-                                title={isBlocked ? "Undo the accepted advisor before accepting a different one." : undefined}
+                                onClick={() => handleAccept(rec, index + 1)}
+                                disabled={isBlocked || acceptingAdvisorId !== null}
+                                title={isBlocked ? "An advisor is already accepted for this applicant." : undefined}
                                 className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:hover:bg-zinc-300"
                               >
                                 <CheckCircle2 className="h-4 w-4" />
-                                Accept
+                                {acceptingAdvisorId === rec.advisorId
+                                  ? "Accepting..."
+                                  : "Accept"}
                               </button>
                               {isBlocked && (
                                 <span className="text-xs text-zinc-500">
