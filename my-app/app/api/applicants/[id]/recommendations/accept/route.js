@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { createClient } from "@/utils/supabase/server";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -47,7 +47,7 @@ export async function POST(request, { params }) {
     );
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = createClient();
 
   const { data: applicant, error: applicantError } = await supabase
     .from("applicants")
