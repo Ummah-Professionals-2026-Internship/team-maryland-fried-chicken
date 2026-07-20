@@ -25,7 +25,9 @@ export async function proxy(request) {
     const isApiRequest = currentPath.startsWith('/api/')
 
     // 🔑 THE WHITELIST: Explicitly allow the login page and the login processing endpoint
-    const isPublicRoute = currentPath === '/login' || currentPath === '/api/login' || currentPath === '/forms' || currentPath === '/' || currentPath === '/api/applicants' || currentPath === '/api/advisors/'  || currentPath === '/forms/applicants' || currentPath.startsWith('/forms/advisors/')
+    const isPublicRoute = currentPath === '/login' || currentPath === '/api/login' || currentPath === '/forms' 
+    || currentPath === '/' || currentPath === '/api/applicants' || currentPath === '/api/advisors/'  
+    || currentPath === '/forms/applicants' || currentPath === '/forms/advisors'
 
     // 4. THE AUTHENTICATION SHIELD
     if (!user && !isPublicRoute) {

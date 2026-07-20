@@ -32,7 +32,7 @@ type ApplicantFormState = {
   email: string;
   phone: string;
   gender: string;
-  city: string;
+  county: string;
   state: string;
   university: string;
   major: string;
@@ -49,7 +49,7 @@ const initialState: ApplicantFormState = {
   email: "",
   phone: "",
   gender: "",
-  city: "",
+  county: "",
   state: "",
   university: "",
   major: "",
@@ -87,7 +87,7 @@ export default function ApplicantForm() {
     setError(null);
 
     const missingFields: string[] = [];
-    if (!form.city.trim()) missingFields.push("City");
+    if (!form.county.trim()) missingFields.push("County");
     if (!form.state.trim()) missingFields.push("State");
     if (form.services.length === 0) missingFields.push("Service Type Requested");
 
@@ -222,13 +222,13 @@ export default function ApplicantForm() {
               onChange={(e) => set("gender", e.target.value)}
             />
           </Field>
-          <Field label="City" required htmlFor="city">
+          <Field label="County" required htmlFor="county">
             <TextField
-              id="city"
+              id="county"
               required
-              placeholder="e.g. Raleigh"
-              value={form.city}
-              onChange={(e) => set("city", e.target.value)}
+              placeholder="e.g. Wake"
+              value={form.county}
+              onChange={(e) => set("county", e.target.value)}
             />
           </Field>
           <Field label="State" required htmlFor="state">

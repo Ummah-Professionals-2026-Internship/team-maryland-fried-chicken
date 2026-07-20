@@ -1,4 +1,4 @@
-
+import { createClient } from "@/utils/supabase/server";
 
 // Fetch all rows from the advisors table, including service types and expertise areas
 export async function getAllAdvisors() {
