@@ -1,4 +1,4 @@
-import supabase from "@/supabaseClient";
+import supabase from "@/utils/supabase/server";
 
 // Fetch all rows from the applicants table, including the resolved service name
 export async function getAllApplicants() {

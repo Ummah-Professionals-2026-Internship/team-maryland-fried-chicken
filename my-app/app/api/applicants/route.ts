@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAllApplicants } from "@/lib/applicantService";
-import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { createClient } from "@/utils/supabase/server";
 
 function getString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -46,8 +46,12 @@ export async function POST(request: Request) {
   const gender = getString(body.gender);
 
   // Location fields
-  const locationCity = getString(body.location_city || body.city);
-  const locationState = getString(body.location_state || body.state);
+  const locationCounty = getString(
+    body.location_county || body.county,
+  );
+  const locationState = getString(
+    body.location_state || body.state,
+  );
 
   const university = getString(body.university);
   const major = getString(body.major);
@@ -63,7 +67,7 @@ export async function POST(request: Request) {
     ["Email", email],
     ["Phone Number", phone],
     ["Gender", gender],
-    ["City", locationCity],
+    ["County", locationCounty],
     ["State", locationState],
     ["University", university],
     ["Major", major],
@@ -86,7 +90,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = createClient();
 
     const { data: existingApplicant, error: existingApplicantError } =
       await supabase
@@ -143,7 +147,7 @@ export async function POST(request: Request) {
           gender,
 
           // Updated location columns
-          location_city: locationCity,
+          location_county: locationCounty,
           location_state: locationState,
 
           university,

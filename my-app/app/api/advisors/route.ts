@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { type SupabaseClient } from "@supabase/supabase-js";
 import { getAllAdvisors } from "@/lib/advisorService";
-import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { createClient } from '@/utils/supabase/server'
 
 type LookupRow = {
   id: string;
@@ -76,8 +76,8 @@ export async function POST(request: Request) {
   const email = getString(body.email).toLowerCase();
   const gender = getString(body.gender);
 
-  // Location fields
-  const locationCity = getString(body.location_city || body.city);
+  // Location fields updated from City to County
+  const locationCounty = getString(body.location_county || body.county);
   const locationState = getString(body.location_state || body.state);
 
   const almaMaters = getStringArray(body.almaMaters);
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
     ["Last Name", lastName],
     ["Email", email],
     ["Gender", gender],
-    ["City", locationCity],
+    ["County", locationCounty],
     ["State", locationState],
     ["Company", company],
     ["Job Title", jobTitle],
@@ -127,7 +127,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = createClient()
 
     const { data: existingAdvisor, error: existingAdvisorError } = await supabase
       .from("advisors")
@@ -157,8 +157,8 @@ export async function POST(request: Request) {
         email,
         gender,
 
-        // Updated location columns
-        location_city: locationCity,
+        // Updated location column mapping
+        location_county: locationCounty,
         location_state: locationState,
 
         alma_mater: almaMaters.join(", "),

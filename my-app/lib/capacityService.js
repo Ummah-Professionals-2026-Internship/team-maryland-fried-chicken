@@ -1,4 +1,4 @@
-import supabase from "../supabaseClient.js";
+import supabase from "@/utils/supabase/server";
 
 // Adjust these values to match the actual match_status enum in the matches table.
 // Any match whose status is in this list will NOT count against an advisor's capacity.
