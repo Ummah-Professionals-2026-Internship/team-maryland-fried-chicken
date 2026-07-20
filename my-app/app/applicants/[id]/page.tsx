@@ -18,9 +18,17 @@ type Recommendation = {
   experienceLevel: string;
   reliabilityLevel: string;
   matchScore: number;
+  totalScore: number;
+  careerScore: number;
+  industryScore: number;
+  experienceScore: number;
+  genderBonus: number;
+  capacityAdjustment: number;
+  careerSimilarity: string;
   currentMonthlyAssignments: number;
   maxMonthlyAssignments: number;
   explanation: string[];
+  recommendationStatus: "Pending" | "Accepted" | "Rejected";
 };
 
 function getReliabilityStyles(level: string) {
@@ -84,13 +92,117 @@ export default function ApplicantDetailPage() {
   const [hasGenerated, setHasGenerated] = useState(false);
   // Only one advisor can be accepted per applicant at a time.
   const [acceptedAdvisorId, setAcceptedAdvisorId] = useState<string | null>(null);
+  const [acceptingAdvisorId, setAcceptingAdvisorId] = useState<string | null>(null);
+  const [acceptError, setAcceptError] = useState<string | null>(null);
+  const [isUndoing, setIsUndoing] = useState(false);
 
-  function handleAccept(advisorId: string) {
-    setAcceptedAdvisorId(advisorId);
+  async function handleAccept(rec: Recommendation, rankPosition: number) {
+    setAcceptingAdvisorId(rec.advisorId);
+    setAcceptError(null);
+
+    try {
+      const response = await fetch(
+        `/api/applicants/${id}/recommendations/accept`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            advisorId: rec.advisorId,
+            matchScore: rec.matchScore,
+            rankPosition,
+            explanation: rec.explanation,
+          }),
+        },
+      );
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(body.error ?? `Server error: ${response.status}`);
+      }
+
+      setAcceptedAdvisorId(rec.advisorId);
+      setRecommendations((current) =>
+        current.map((item) =>
+          item.advisorId === rec.advisorId
+            ? {
+                ...item,
+                recommendationStatus: "Accepted",
+                currentMonthlyAssignments: Number(
+                  body.currentAssignments ?? item.currentMonthlyAssignments + 1,
+                ),
+              }
+            : item,
+        ),
+      );
+      setApplicant((current) =>
+        current ? { ...current, status: "Matched" } : current,
+      );
+    } catch (err) {
+      setAcceptError(
+        err instanceof Error
+          ? err.message
+          : "Failed to accept recommendation.",
+      );
+    } finally {
+      setAcceptingAdvisorId(null);
+    }
   }
 
-  function handleUndo() {
-    setAcceptedAdvisorId(null);
+  async function handleUndo() {
+    setIsUndoing(true);
+    setAcceptError(null);
+
+    try {
+      const response = await fetch(
+        `/api/applicants/${id}/recommendations/undo`,
+        {
+          method: "POST",
+        },
+      );
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(body.error ?? `Server error: ${response.status}`);
+      }
+
+      setAcceptedAdvisorId(null);
+      setApplicant((current) =>
+        current
+          ? {
+              ...current,
+              status: "Recommendations Generated",
+            }
+          : current,
+      );
+      setRecommendations((current) =>
+        current.map((item) =>
+          item.advisorId === body.advisorId
+            ? {
+                ...item,
+                recommendationStatus: "Pending",
+                currentMonthlyAssignments: Number(
+                  body.currentAssignments ??
+                    Math.max(0, item.currentMonthlyAssignments - 1),
+                ),
+              }
+            : item,
+        ),
+      );
+      setHasGenerated(true);
+      setRecError(null);
+    } catch (err) {
+      setAcceptError(
+        err instanceof Error
+          ? err.message
+          : "Failed to undo accepted recommendation.",
+      );
+    } finally {
+      setIsUndoing(false);
+    }
   }
 
   useEffect(() => {
@@ -114,6 +226,36 @@ export default function ApplicantDetailPage() {
 
         const data = await response.json();
         setApplicant(mapApplicant(data));
+
+        const recommendationsResponse = await fetch(
+          `/api/applicants/${id}/recommendations?persistedOnly=true`,
+        );
+
+        if (recommendationsResponse.ok) {
+          const savedRecommendations: Recommendation[] =
+            await recommendationsResponse.json();
+
+          setRecommendations(savedRecommendations);
+          setHasGenerated(savedRecommendations.length > 0);
+
+          const acceptedRecommendation = savedRecommendations.find(
+            (recommendation) =>
+              recommendation.recommendationStatus === "Accepted",
+          );
+
+          setAcceptedAdvisorId(
+            acceptedRecommendation?.advisorId ?? null,
+          );
+        } else {
+          const recommendationsBody = await recommendationsResponse
+            .json()
+            .catch(() => ({}));
+
+          setRecError(
+            recommendationsBody.error ??
+              `Server error: ${recommendationsResponse.status}`,
+          );
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong.");
       } finally {
@@ -127,6 +269,7 @@ export default function ApplicantDetailPage() {
   async function handleGenerateRecommendations() {
   setRecLoading(true);
   setRecError(null);
+  setAcceptError(null);
   setAcceptedAdvisorId(null);
 
   try {
@@ -208,9 +351,19 @@ export default function ApplicantDetailPage() {
                   <span className="flex h-14 w-14 items-center justify-center rounded-full bg-sky-100 text-sky-700 text-lg font-semibold">
                     {initials(applicant.name)}
                   </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">
-                    <Clock className="h-3.5 w-3.5" />
-                    Awaiting Match
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
+                      applicant.status === "Matched"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-amber-50 text-amber-700"
+                    }`}
+                  >
+                    {applicant.status === "Matched" ? (
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    ) : (
+                      <Clock className="h-3.5 w-3.5" />
+                    )}
+                    {applicant.status === "Matched" ? "Matched" : "Awaiting Match"}
                   </span>
                 </div>
 
@@ -325,7 +478,7 @@ export default function ApplicantDetailPage() {
                 </div>
                 <button
                   onClick={handleGenerateRecommendations}
-                  disabled={recLoading}
+                  disabled={recLoading || applicant.status === "Matched"}
                   className="inline-flex items-center gap-2 rounded-lg bg-[#2F7FA8] px-6 py-3 text-base font-medium text-white hover:bg-[#286E92] disabled:opacity-60"
                 >
                   <Sparkles className="h-5 w-5" />
@@ -347,6 +500,14 @@ export default function ApplicantDetailPage() {
               <Card className="border-red-200 bg-red-50">
                 <CardContent className="p-12 text-center text-sm text-red-700">
                   {recError}
+                </CardContent>
+              </Card>
+            )}
+
+            {!recLoading && acceptError && (
+              <Card className="border-red-200 bg-red-50">
+                <CardContent className="p-4 text-center text-sm text-red-700">
+                  {acceptError}
                 </CardContent>
               </Card>
             )}
@@ -373,12 +534,14 @@ export default function ApplicantDetailPage() {
                 </CardContent>
               </Card>
             )}
-
-            {!recLoading && !recError && recommendations.length > 0 && (
+{!recLoading && !recError && recommendations.length > 0 && (
               <div className="space-y-4">
-                {recommendations.map((rec) => {
-                  const isAccepted = acceptedAdvisorId === rec.advisorId;
-                  const isBlocked = acceptedAdvisorId !== null && !isAccepted;
+                {recommendations.map((rec, index) => {
+                  const isAccepted =
+                    acceptedAdvisorId === rec.advisorId ||
+                    rec.recommendationStatus === "Accepted";
+                  const isBlocked =
+                    acceptedAdvisorId !== null && !isAccepted;
 
                   return (
                     <Card
@@ -433,29 +596,32 @@ export default function ApplicantDetailPage() {
 
                         <div className="mt-4 flex items-center gap-2 border-t border-zinc-100 pt-4">
                           {isAccepted ? (
-                            <>
-                              <button
-                                onClick={handleUndo}
-                                className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-                              >
-                                <RotateCcw className="h-4 w-4" />
-                                Undo
-                              </button>
+                            <div className="flex items-center gap-2">
                               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
                                 <CheckCircle2 className="h-3.5 w-3.5" />
                                 Accepted
                               </span>
-                            </>
+                              <button
+                                onClick={handleUndo}
+                                disabled={isUndoing}
+                                className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                                {isUndoing ? "Undoing..." : "Undo Match"}
+                              </button>
+                            </div>
                           ) : (
                             <>
                               <button
-                                onClick={() => handleAccept(rec.advisorId)}
-                                disabled={isBlocked}
-                                title={isBlocked ? "Undo the accepted advisor before accepting a different one." : undefined}
+                                onClick={() => handleAccept(rec, index + 1)}
+                                disabled={isBlocked || acceptingAdvisorId !== null}
+                                title={isBlocked ? "An advisor is already accepted for this applicant." : undefined}
                                 className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:hover:bg-zinc-300"
                               >
                                 <CheckCircle2 className="h-4 w-4" />
-                                Accept
+                                {acceptingAdvisorId === rec.advisorId
+                                  ? "Accepting..."
+                                  : "Accept"}
                               </button>
                               {isBlocked && (
                                 <span className="text-xs text-zinc-500">
