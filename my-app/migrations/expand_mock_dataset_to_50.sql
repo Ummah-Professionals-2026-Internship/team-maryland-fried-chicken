@@ -449,4 +449,3 @@ WHERE NOT EXISTS (
 SELECT
     (SELECT COUNT(*) FROM advisors) AS advisor_count,
     (SELECT COUNT(*) FROM applicants) AS applicant_count;
-
