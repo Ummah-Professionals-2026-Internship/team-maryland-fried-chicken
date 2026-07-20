@@ -3,7 +3,7 @@
  * No API calls, no database access, no side effects.
  */
 
-const DEFAULT_LIMIT = 5;
+const DEFAULT_LIMIT = 3;
 
 /**
  * Sorts scored advisor entries descending by total score and returns the top N.
