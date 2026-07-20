@@ -28,6 +28,7 @@ type Recommendation = {
   currentMonthlyAssignments: number;
   maxMonthlyAssignments: number;
   explanation: string[];
+  recommendationStatus: "Pending" | "Accepted" | "Rejected";
 };
 
 function getReliabilityStyles(level: string) {
@@ -123,6 +124,19 @@ export default function ApplicantDetailPage() {
       }
 
       setAcceptedAdvisorId(rec.advisorId);
+      setRecommendations((current) =>
+        current.map((item) =>
+          item.advisorId === rec.advisorId
+            ? {
+                ...item,
+                recommendationStatus: "Accepted",
+                currentMonthlyAssignments: Number(
+                  body.currentAssignments ?? item.currentMonthlyAssignments + 1,
+                ),
+              }
+            : item,
+        ),
+      );
       setApplicant((current) =>
         current ? { ...current, status: "Matched" } : current,
       );
@@ -164,8 +178,21 @@ export default function ApplicantDetailPage() {
             }
           : current,
       );
-      setRecommendations([]);
-      setHasGenerated(false);
+      setRecommendations((current) =>
+        current.map((item) =>
+          item.advisorId === body.advisorId
+            ? {
+                ...item,
+                recommendationStatus: "Pending",
+                currentMonthlyAssignments: Number(
+                  body.currentAssignments ??
+                    Math.max(0, item.currentMonthlyAssignments - 1),
+                ),
+              }
+            : item,
+        ),
+      );
+      setHasGenerated(true);
       setRecError(null);
     } catch (err) {
       setAcceptError(
@@ -199,6 +226,36 @@ export default function ApplicantDetailPage() {
 
         const data = await response.json();
         setApplicant(mapApplicant(data));
+
+        const recommendationsResponse = await fetch(
+          `/api/applicants/${id}/recommendations?persistedOnly=true`,
+        );
+
+        if (recommendationsResponse.ok) {
+          const savedRecommendations: Recommendation[] =
+            await recommendationsResponse.json();
+
+          setRecommendations(savedRecommendations);
+          setHasGenerated(savedRecommendations.length > 0);
+
+          const acceptedRecommendation = savedRecommendations.find(
+            (recommendation) =>
+              recommendation.recommendationStatus === "Accepted",
+          );
+
+          setAcceptedAdvisorId(
+            acceptedRecommendation?.advisorId ?? null,
+          );
+        } else {
+          const recommendationsBody = await recommendationsResponse
+            .json()
+            .catch(() => ({}));
+
+          setRecError(
+            recommendationsBody.error ??
+              `Server error: ${recommendationsResponse.status}`,
+          );
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong.");
       } finally {
@@ -419,17 +476,6 @@ export default function ApplicantDetailPage() {
                       : "No recommendations generated yet."}
                   </p>
                 </div>
-                {applicant.status === "Matched" && (
-                  <button
-                    onClick={handleUndo}
-                    disabled={isUndoing}
-                    className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-6 py-3 text-base font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <RotateCcw className="h-5 w-5" />
-                    {isUndoing ? "Undoing..." : "Undo Match"}
-                  </button>
-                )}
-
                 <button
                   onClick={handleGenerateRecommendations}
                   disabled={recLoading || applicant.status === "Matched"}
@@ -491,8 +537,11 @@ export default function ApplicantDetailPage() {
 {!recLoading && !recError && recommendations.length > 0 && (
               <div className="space-y-4">
                 {recommendations.map((rec, index) => {
-                  const isAccepted = acceptedAdvisorId === rec.advisorId;
-                  const isBlocked = acceptedAdvisorId !== null && !isAccepted;
+                  const isAccepted =
+                    acceptedAdvisorId === rec.advisorId ||
+                    rec.recommendationStatus === "Accepted";
+                  const isBlocked =
+                    acceptedAdvisorId !== null && !isAccepted;
 
                   return (
                     <Card
@@ -547,10 +596,20 @@ export default function ApplicantDetailPage() {
 
                         <div className="mt-4 flex items-center gap-2 border-t border-zinc-100 pt-4">
                           {isAccepted ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              Accepted
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Accepted
+                              </span>
+                              <button
+                                onClick={handleUndo}
+                                disabled={isUndoing}
+                                className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                                {isUndoing ? "Undoing..." : "Undo Match"}
+                              </button>
+                            </div>
                           ) : (
                             <>
                               <button

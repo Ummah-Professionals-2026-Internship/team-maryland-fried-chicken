@@ -60,6 +60,19 @@ export async function POST(_request, { params }) {
     );
   }
 
+  const { data: advisor, error: advisorError } = await supabase
+    .from("advisors")
+    .select("id, currentAssignments")
+    .eq("id", activeMatch.advisor_id)
+    .maybeSingle();
+
+  if (advisorError) {
+    return NextResponse.json(
+      { error: advisorError.message },
+      { status: 500 },
+    );
+  }
+
   const { error: matchDeleteError } = await supabase
     .from("matches")
     .delete()
@@ -73,18 +86,35 @@ export async function POST(_request, { params }) {
   }
 
   if (activeMatch.recommendation_id) {
-    const { error: recommendationDeleteError } = await supabase
+    const { error: recommendationUpdateError } = await supabase
       .from("recommendations")
-      .delete()
+      .update({ recommendation_status: "Pending" })
       .eq("id", activeMatch.recommendation_id)
       .eq("applicant_id", applicantId);
 
-    if (recommendationDeleteError) {
+    if (recommendationUpdateError) {
       return NextResponse.json(
-        { error: recommendationDeleteError.message },
+        { error: recommendationUpdateError.message },
         { status: 500 },
       );
     }
+  }
+
+  const nextCurrentAssignments = Math.max(
+    0,
+    Number(advisor?.currentAssignments ?? 0) - 1,
+  );
+
+  const { error: advisorUpdateError } = await supabase
+    .from("advisors")
+    .update({ currentAssignments: nextCurrentAssignments })
+    .eq("id", activeMatch.advisor_id);
+
+  if (advisorUpdateError) {
+    return NextResponse.json(
+      { error: advisorUpdateError.message },
+      { status: 500 },
+    );
   }
 
   const { error: applicantUpdateError } = await supabase
@@ -104,6 +134,7 @@ export async function POST(_request, { params }) {
       message: "Accepted recommendation undone successfully.",
       applicantStatus: "Recommendations Generated",
       advisorId: activeMatch.advisor_id,
+      currentAssignments: nextCurrentAssignments,
     },
     { status: 200 },
   );

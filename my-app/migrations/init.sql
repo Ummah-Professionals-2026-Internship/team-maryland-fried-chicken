@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS advisors (
     unique_career_experiences   TEXT CHECK (unique_career_experiences IN ('Career Change', 'Graduate School', 'Entrepreneurship', 'International Career', 'Startup Experience', 'Leadership Experience', 'Career Break', 'First-Generation College Student', 'Military Experience', 'Remote Work', 'Immigration Journey')),
     mentorship_experience       TEXT CHECK (mentorship_experience IN ('None', 'Less than 1 year', '1â€“3 years', '3â€“5 years', '5+ years')),
     max_meetings_per_month      INTEGER NOT NULL DEFAULT 3,
+    "currentAssignments"        INTEGER NOT NULL DEFAULT 0,
     additional_notes            TEXT,
     location_city               TEXT,
     location_state               TEXT,
@@ -132,6 +133,13 @@ CREATE TABLE IF NOT EXISTS recommendations (
     recommendation_status   TEXT NOT NULL DEFAULT 'Pending'
                                  CHECK (recommendation_status IN ('Pending', 'Accepted', 'Rejected')),
     matching_explanation    TEXT,
+    total_score             NUMERIC,
+    career_score            NUMERIC,
+    industry_score          NUMERIC,
+    experience_score        NUMERIC,
+    gender_bonus            NUMERIC,
+    capacity_adjustment     NUMERIC,
+    career_similarity       TEXT,
     generated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(), -- acts as created_at
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -243,6 +251,18 @@ ADD COLUMN IF NOT EXISTS phone_number TEXT;
 
 ALTER TABLE advisors
 ADD COLUMN IF NOT EXISTS linkedin_url TEXT;
+
+ALTER TABLE advisors
+ADD COLUMN IF NOT EXISTS "currentAssignments" INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE recommendations
+ADD COLUMN IF NOT EXISTS total_score NUMERIC,
+ADD COLUMN IF NOT EXISTS career_score NUMERIC,
+ADD COLUMN IF NOT EXISTS industry_score NUMERIC,
+ADD COLUMN IF NOT EXISTS experience_score NUMERIC,
+ADD COLUMN IF NOT EXISTS gender_bonus NUMERIC,
+ADD COLUMN IF NOT EXISTS capacity_adjustment NUMERIC,
+ADD COLUMN IF NOT EXISTS career_similarity TEXT;
 
 ALTER TABLE applicants
 ADD COLUMN IF NOT EXISTS phone_number TEXT;
