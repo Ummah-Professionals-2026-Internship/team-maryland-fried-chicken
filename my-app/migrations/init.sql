@@ -45,14 +45,13 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS advisors (
     id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id                     UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     advisor_code                TEXT UNIQUE,                  -- e.g. ADV-101-0001
     first_name                  TEXT NOT NULL,
     last_name                   TEXT NOT NULL,
     email                       TEXT,
     phone_number                TEXT,                         -- Added phone number field
     linkedin_url                TEXT,
-    gender                      TEXT,
+    gender                      TEXT CHECK (gender IN (Brother, Sister))
     alma_mater                  TEXT,
     major                       TEXT,
     company                     TEXT,

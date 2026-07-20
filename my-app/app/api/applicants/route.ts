@@ -6,6 +6,16 @@ function getString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function formatPhoneNumber(value: string) {
+  const digits = value.replace(/\D/g, "");
+  const normalized =
+    digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+
+  if (normalized.length !== 10) return "";
+
+  return `+1 (${normalized.slice(0, 3)}) ${normalized.slice(3, 6)}-${normalized.slice(6)}`;
+}
+
 function getStringArray(value: unknown) {
   if (!Array.isArray(value)) return [];
 
@@ -42,8 +52,15 @@ export async function POST(request: Request) {
   const firstName = getString(body.firstName);
   const lastName = getString(body.lastName);
   const email = getString(body.email).toLowerCase();
-  const phone = getString(body.phone);
+  const phone = formatPhoneNumber(getString(body.phone));
   const gender = getString(body.gender);
+
+  if (!["Brother", "Sister"].includes(gender)) {
+    return NextResponse.json(
+      { error: "Gender must be Brother or Sister." },
+      { status: 400 },
+    );
+  }
 
   // Location fields
   const locationCity = getString(body.location_city || body.city);
