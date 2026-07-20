@@ -47,6 +47,3 @@ export function createAdminClient() {
     }
   )
 }
-
-export const supabaseAdmin = createAdminClient()
-export const supabase = createClient()

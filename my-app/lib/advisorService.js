@@ -1,7 +1,8 @@
-import supabase from "@/utils/supabase/server";
+
 
 // Fetch all rows from the advisors table, including service types and expertise areas
 export async function getAllAdvisors() {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("advisors")
     .select("*, advisor_services(service_types(name)), advisor_expertise(expertise_areas(name))");
@@ -10,6 +11,7 @@ export async function getAllAdvisors() {
 
 // Fetch a single advisor by their id, including service types and expertise areas
 export async function getAdvisorById(id) {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("advisors")
     .select("*, advisor_services(service_types(name)), advisor_expertise(expertise_areas(name))")
@@ -20,6 +22,7 @@ export async function getAdvisorById(id) {
 
 // Insert a new row into the advisors table
 export async function createAdvisor(data) {
+  const supabase = await createClient();
   const { data: created, error } = await supabase
     .from("advisors")
     .insert(data)
@@ -30,6 +33,7 @@ export async function createAdvisor(data) {
 
 // Update an existing advisor by their id
 export async function updateAdvisor(id, data) {
+  const supabase = await createClient();
   const { data: updated, error } = await supabase
     .from("advisors")
     .update(data)
