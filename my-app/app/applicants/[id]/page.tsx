@@ -48,9 +48,9 @@ function initials(name: string) {
 
 // Maps a raw Supabase applicant row to the Applicant UI type
 function mapApplicant(raw: Record<string, unknown>): Applicant {
-  const city = String(raw.location_city ?? "");
-  const state = String(raw.location_state ?? "");
-  const location = [city, state].filter(Boolean).join(", ") || undefined;
+  const county = String(raw.location_county ?? raw.county ?? "");
+  const state = String(raw.location_state ?? raw.state ?? "");
+  const location = [county, state].filter(Boolean).join(", ") || undefined;
 
   return {
     id: String(raw.id ?? ""),
@@ -78,7 +78,6 @@ function mapApplicant(raw: Record<string, unknown>): Applicant {
     additionalNotes: raw.additional_notes ? String(raw.additional_notes) : undefined,
   };
 }
-
 
 export default function ApplicantDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -267,12 +266,12 @@ export default function ApplicantDetailPage() {
   }, [id]);
 
   async function handleGenerateRecommendations() {
-  setRecLoading(true);
-  setRecError(null);
-  setAcceptError(null);
-  setAcceptedAdvisorId(null);
+    setRecLoading(true);
+    setRecError(null);
+    setAcceptError(null);
+    setAcceptedAdvisorId(null);
 
-  try {
+    try {
       const response = await fetch(`/api/applicants/${id}/recommendations`);
 
       if (!response.ok) {
@@ -486,7 +485,6 @@ export default function ApplicantDetailPage() {
                 </button>
               </CardContent>
             </Card>
-            
 
             {recLoading && (
               <Card className="border-zinc-200">
@@ -534,7 +532,8 @@ export default function ApplicantDetailPage() {
                 </CardContent>
               </Card>
             )}
-{!recLoading && !recError && recommendations.length > 0 && (
+
+            {!recLoading && !recError && recommendations.length > 0 && (
               <div className="space-y-4">
                 {recommendations.map((rec, index) => {
                   const isAccepted =
