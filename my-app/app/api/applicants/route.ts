@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { getAllApplicants } from "@/lib/applicantService";
 import { createClient } from "@/utils/supabase/server";
 
+const ALLOWED_REFERRAL_SOURCES = [
+  "Word of Mouth",
+  "Instagram",
+  "LinkedIn",
+  "My MSA",
+  "My YM",
+] as const;
+
 function getString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -59,7 +67,23 @@ export async function POST(request: Request) {
   const desiredFutureCareer = getString(body.desiredFutureCareer);
   const industry = getString(body.industry);
   const services = getStringArray(body.services);
+
+  // Optional string fields defaulting to empty strings or "Other"
   const additionalNotes = getString(body.additionalNotes);
+  const source = getString(body.source || body.referralSource) || "Other";
+
+  // Strict route-level check for the source column
+  const isPredefinedSource = ALLOWED_REFERRAL_SOURCES.includes(
+    source as (typeof ALLOWED_REFERRAL_SOURCES)[number],
+  );
+  const isValidCustomSource = source.trim().length > 0;
+
+  if (!isPredefinedSource && !isValidCustomSource) {
+    return NextResponse.json(
+      { error: "Invalid referral source value provided." },
+      { status: 400 },
+    );
+  }
 
   const missingFields = [
     ["First Name", firstName],
@@ -146,7 +170,7 @@ export async function POST(request: Request) {
           phone_number: phone,
           gender,
 
-          // Updated location columns
+          // Location columns
           location_county: locationCounty,
           location_state: locationState,
 
@@ -156,8 +180,8 @@ export async function POST(request: Request) {
           desired_future_career: desiredFutureCareer,
           industry,
           service_id: serviceType.id,
-          additional_notes: additionalNotes || null,
-          source: "Public Applicant Form",
+          additional_notes: additionalNotes,
+          source,
         })
         .select("id")
         .single();

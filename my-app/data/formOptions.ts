@@ -54,6 +54,8 @@ export const EXPERIENCE_LEVELS = [
   "Senior Professional (10+ Years)",
 ] as const;
 
+
+
 // Gender choices — kept as Brother / Sister per program convention.
 export const GENDERS = ["Brother", "Sister"] as const;
 
@@ -72,3 +74,14 @@ export type ServiceType = (typeof SERVICE_TYPES)[number];
 export type AcademicStanding = (typeof ACADEMIC_STANDINGS)[number];
 export type ExperienceLevel = (typeof EXPERIENCE_LEVELS)[number];
 export type Gender = (typeof GENDERS)[number];
+
+export const REFERRAL_SOURCES = [
+  "Word of Mouth",
+  "Instagram",
+  "LinkedIn",
+  "My MSA",
+  "My YM",
+  "Other",
+] as const;
+
+export type ReferralSource = (typeof REFERRAL_SOURCES)[number];
