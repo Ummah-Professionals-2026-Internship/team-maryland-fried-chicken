@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { type SupabaseClient } from "@supabase/supabase-js";
 import { getAllAdvisors } from "@/lib/advisorService";
-import { createClient } from '@/utils/supabase/server'
+import { createClient } from "@/utils/supabase/server";
 
 type LookupRow = {
   id: string;
@@ -127,27 +127,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const supabase = createClient()
-
-    const { data: existingAdvisor, error: existingAdvisorError } = await supabase
-      .from("advisors")
-      .select("id")
-      .eq("email", email)
-      .maybeSingle();
-
-    if (existingAdvisorError) {
-      return NextResponse.json(
-        { error: existingAdvisorError.message },
-        { status: 500 },
-      );
-    }
-
-    if (existingAdvisor) {
-      return NextResponse.json(
-        { error: "An advisor submission with this email already exists." },
-        { status: 409 },
-      );
-    }
+    const supabase = createClient();
 
     const { data: advisor, error: advisorError } = await supabase
       .from("advisors")
@@ -237,6 +217,9 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    console.error("=== UNHANDLED POST /api/advisors EXCEPTION ===");
+    console.error(error);
+    console.error("=============================================");
     return NextResponse.json(
       {
         error:
