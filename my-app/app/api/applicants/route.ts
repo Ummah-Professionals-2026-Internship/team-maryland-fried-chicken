@@ -28,6 +28,7 @@ export async function GET() {
   const { data, error } = await getAllApplicants();
 
   if (error) {
+    console.error("[GET /api/applicants Error]:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
@@ -40,7 +41,8 @@ export async function POST(request: Request) {
 
   try {
     body = (await request.json()) as Record<string, unknown>;
-  } catch {
+  } catch (err) {
+    console.error("[POST /api/applicants - JSON Parsing Error]:", err);
     return NextResponse.json(
       { error: "Invalid request body. Expected JSON." },
       { status: 400 },
@@ -116,29 +118,9 @@ export async function POST(request: Request) {
   try {
     const supabase = createClient();
 
-    const { data: existingApplicant, error: existingApplicantError } =
-      await supabase
-        .from("applicants")
-        .select("id")
-        .eq("email", email)
-        .maybeSingle();
-
-    if (existingApplicantError) {
-      return NextResponse.json(
-        { error: existingApplicantError.message },
-        { status: 500 },
-      );
-    }
-
-    if (existingApplicant) {
-      return NextResponse.json(
-        { error: "An applicant submission with this email already exists." },
-        { status: 409 },
-      );
-    }
-
     const selectedService = services[0];
 
+    // Fetch service type lookup ID
     const { data: serviceType, error: serviceTypeError } =
       await supabase
         .from("service_types")
@@ -147,6 +129,7 @@ export async function POST(request: Request) {
         .maybeSingle();
 
     if (serviceTypeError) {
+      console.error("[POST /api/applicants - Service Type Lookup Error]:", serviceTypeError);
       return NextResponse.json(
         { error: serviceTypeError.message },
         { status: 500 },
@@ -160,6 +143,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Insert applicant record
     const { data: applicant, error: applicantError } =
       await supabase
         .from("applicants")
@@ -187,6 +171,7 @@ export async function POST(request: Request) {
         .single();
 
     if (applicantError) {
+      console.error("[POST /api/applicants - Insert Applicant Error]:", applicantError);
       return NextResponse.json(
         { error: applicantError.message },
         { status: 500 },
@@ -201,6 +186,11 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    // Detailed server console log to catch any unhandled runtime exceptions
+    console.error("=== UNHANDLED POST /api/applicants EXCEPTION ===");
+    console.error(error);
+    console.error("================================================");
+
     return NextResponse.json(
       {
         error:
