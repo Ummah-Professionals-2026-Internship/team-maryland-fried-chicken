@@ -43,7 +43,7 @@ export default function Dashboard() {
   useEffect(() => {
     async function loadDashboardData() {
       try {
-        // Fetch user data and metrics concurrently
+        /// Fetch user data and metrics concurrently
         const [userRes, dashboardRes] = await Promise.all([
           fetch("/api/users/me"),
           fetch("/api/dashboard"),
@@ -52,9 +52,9 @@ export default function Dashboard() {
         // Process User Info
         if (userRes.ok) {
           const userData = await userRes.json();
-          // Extract first_name, name, or full name depending on API return shape
-          const name = userData.first_name || userData.name || userData.user?.first_name || userData.user?.name;
-          if (name) {
+          // Access 'name' inside the nested 'data' object
+          const name = userData.data?.name;
+          if (name && name !== "No Name Set") {
             setUserName(name);
           }
         }
@@ -177,7 +177,7 @@ export default function Dashboard() {
             {/* Match Rate Card */}
             <Card>
               <CardContent>
-                <p className="text-muted-foreground text-xs mb-2">Match Rate</p>
+                <p className="text-muted-foreground text-xs mb-2">Completion Rate</p>
                 <p className="text-foreground text-2xl" style={{ fontWeight: 700 }}>
                   {matchRate}%
                 </p>
