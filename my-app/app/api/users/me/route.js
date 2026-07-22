@@ -1,4 +1,3 @@
-// app/api/users/me/route.js
 import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 
@@ -6,7 +5,7 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   try {
     // 1. Grab the standard client to extract the auto-sent cookie passport
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Cryptographically decode the token to find out who "me" is
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -20,7 +19,6 @@ export async function GET() {
     }
 
     // 2. Spin up the admin client to safely check their role assignment
-    // (This avoids having to maintain public read RLS policies on user_roles)
     const supabaseAdmin = createAdminClient()
 
     const { data: roleMapping } = await supabaseAdmin
@@ -29,21 +27,20 @@ export async function GET() {
       .eq('user_id', user.id)
       .maybeSingle()
 
-    // 3. Construct the clean identity response profile
+    // 3. Extract the exact full_name as-is from raw_user_meta_data
+    const fullName = user.user_metadata?.full_name || 'No Name Set'
+
+    // 4. Construct the clean identity response profile
     const currentProfile = {
       userId: user.id,
       email: user.email,
-      name:
-        user.user_metadata?.full_name ||
-        user.user_metadata?.name ||
-        'No Name Set',
-      role: roleMapping?.roles?.name || 'staff' // Default to baseline access if unassigned
+      name: fullName,
+      role: roleMapping?.roles?.name || 'staff'
     }
 
     return NextResponse.json({ data: currentProfile })
 
   } catch (globalError) {
-    // CRITICAL DEBUGGING: Returns the raw error text string to your browser tab
     return NextResponse.json(
       { 
         error: 'Server processing error',
