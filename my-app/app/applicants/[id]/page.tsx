@@ -7,6 +7,10 @@ import { CheckCircle2, Clock, RotateCcw, Sparkles } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { type Applicant } from "@/components/ui/applicant_table";
+import {
+  ApplicantCaseManagement,
+  MeetingActivity,
+} from "@/components/applicants/ApplicantCaseManagement";
 
 // Shape returned by GET /api/applicants/:id/recommendations
 type Recommendation = {
@@ -458,10 +462,29 @@ export default function ApplicantDetailPage() {
                 </CardContent>
               </Card>
             )}
+            <MeetingActivity
+              applicantId={id}
+              refreshKey={acceptedAdvisorId}
+            />
           </div>
 
           {/* RIGHT COLUMN */}
           <div className="space-y-6 lg:col-span-2">
+            <ApplicantCaseManagement
+              applicantId={id}
+              applicantStatus={applicant.status}
+              onStatusChange={(status) =>
+                setApplicant((current) =>
+                  current
+                    ? {
+                        ...current,
+                        status: status as Applicant["status"],
+                      }
+                    : current,
+                )
+              }
+            />
+
             {/* Recommendations header card */}
             <Card className="border-zinc-200">
               <CardContent className="flex items-center justify-between p-6">
