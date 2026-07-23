@@ -358,15 +358,19 @@ export default function ApplicantDetailPage() {
                     className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
                       applicant.status === "Matched"
                         ? "bg-emerald-50 text-emerald-700"
-                        : "bg-amber-50 text-amber-700"
+                        : applicant.status === "Closed"
+                          ? "bg-zinc-100 text-zinc-700"
+                          : applicant.status === "Recommendations Generated"
+                            ? "bg-sky-50 text-sky-700"
+                            : "bg-amber-50 text-amber-700"
                     }`}
                   >
-                    {applicant.status === "Matched" ? (
+                    {applicant.status === "Matched" || applicant.status === "Closed" ? (
                       <CheckCircle2 className="h-3.5 w-3.5" />
                     ) : (
                       <Clock className="h-3.5 w-3.5" />
                     )}
-                    {applicant.status === "Matched" ? "Matched" : "Awaiting Match"}
+                    {applicant.status}
                   </span>
                 </div>
 

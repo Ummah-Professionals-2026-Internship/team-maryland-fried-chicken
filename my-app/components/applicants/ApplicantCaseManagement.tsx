@@ -239,9 +239,11 @@ export function ApplicantCaseManagement({
     form.followUpPhase === "Follow-up Complete" &&
     form.followUpOutcome === "No Additional Session Needed";
 
-  const showOutcome =
-    form.followUpPhase !== "Not Started" ||
-    Boolean(form.followUpOutcome);
+  const showOutcome = [
+    "1 Week Follow-up",
+    "2 Month Follow-up",
+    "4 Month Follow-up",
+  ].includes(form.followUpPhase);
 
   if (loading) {
     return (
