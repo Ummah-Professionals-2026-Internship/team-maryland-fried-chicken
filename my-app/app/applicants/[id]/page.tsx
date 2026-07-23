@@ -614,7 +614,7 @@ export default function ApplicantDetailPage() {
               </Card>
             )}
 
-            {!recLoading && !recError && !hasGenerated && (
+            {!recLoading && !recError && !hasGenerated && !manualMatch && (
               <Card className="border-zinc-200">
                 <CardContent className="flex flex-col items-center justify-center p-12 text-center">
                   <Sparkles className="h-8 w-8 text-zinc-700" />
