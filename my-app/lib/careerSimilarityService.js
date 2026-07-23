@@ -1,16 +1,26 @@
 // Allowed classification values — Gemini must return exactly one of these.
 const ALLOWED_CLASSIFICATIONS = ["Exact Match", "Closely Related", "Somewhat Related", "Unrelated"];
 
+// Model called directly against Google's Generative Language API (free tier).
+// Override with GEMINI_MODEL in .env. "gemini-flash-lite-latest" is an alias that
+// always tracks the current Flash-Lite, so it won't 404 when a version retires.
+// NOTE: Gemini models honor JSON mode (responseMimeType) below; Gemma models do
+// NOT — they ignore "only JSON" and stream reasoning prose, so avoid Gemma here.
+const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-flash-lite-latest";
+
+// Whether to request Google's native JSON output mode. Gemini supports it and it
+// guarantees a parseable object; Gemma rejects it, so only enable for non-Gemma.
+const USE_JSON_MODE = !GEMINI_MODEL.startsWith("gemma");
+
 // In-memory cache for a single recommendation run.
 // Keyed by "applicantId:advisorId" — prevents duplicate Gemini calls within one run.
 const similarityCache = new Map();
 
 // ---------------------------------------------------------------------------
-// Rate limiter — sized for the gemma-4-31b-it free tier (~30 requests per
-// minute), called via OpenRouter with a BYOK Google AI Studio key.
-// Lower to 15 if you see upstream 429s; raise only if you move to a paid tier.
+// Rate limiter — sized for the Google AI Studio free tier. Flash-Lite allows
+// ~15 requests/minute; Gemma allows ~30. Raise if you move to a paid tier.
 // ---------------------------------------------------------------------------
-const RATE_LIMIT = 30;          // max calls allowed per window
+const RATE_LIMIT = 15;          // max calls allowed per window
 const RATE_WINDOW_MS = 60_000; // sliding window size in milliseconds (60 seconds)
 
 // Timestamps (ms) of the most recent Gemini call attempts, oldest first.
@@ -79,10 +89,10 @@ export async function getCareerSimilarity(applicant, advisor) {
   }
 
   // Read key at call time so a missing key at import time doesn't crash the module
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
-    console.warn("[careerSimilarityService] OPENROUTER_API_KEY is not set — skipping career similarity.");
+    console.warn("[careerSimilarityService] GEMINI_API_KEY is not set — skipping career similarity.");
     return { classification: "Unrelated", explanation: "Career similarity unavailable" };
   }
 
@@ -103,30 +113,29 @@ Classify the relationship into EXACTLY ONE of these four categories:
 Respond with ONLY a JSON object in this exact format, no other text:
 {"classification": "Closely Related", "explanation": "one brief sentence explaining why"}`;
 
+    const generationConfig = { temperature: 0.1, maxOutputTokens: 300 };
+    if (USE_JSON_MODE) generationConfig.responseMimeType = "application/json";
+
     try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        // model: "google/gemini-2.5-flash-lite",
-        model: "google/gemma-4-31b-it:free",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.1,
-        max_tokens: 150,
-        response_format: { type: "json_object" }, // ask for raw JSON
-      }),
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig,
+        }),
+      }
+    );
 
     if (!response.ok) {
       const body = await response.text().catch(() => "(unreadable)");
-      throw new Error(`OpenRouter API returned ${response.status}: ${body}`);
+      throw new Error(`Gemini API returned ${response.status}: ${body}`);
     }
 
     const json = await response.json();
-    const rawText = json?.choices?.[0]?.message?.content ?? "";
+    const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
     // Strip markdown code fences if Gemini wraps the JSON
     const cleaned = rawText.replace(/```json|```/g, "").trim();
