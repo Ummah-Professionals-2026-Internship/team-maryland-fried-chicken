@@ -6,11 +6,11 @@ const ALLOWED_CLASSIFICATIONS = ["Exact Match", "Closely Related", "Somewhat Rel
 const similarityCache = new Map();
 
 // ---------------------------------------------------------------------------
-// Rate limiter — sized for Gemini 2.5 Flash free tier: 5 requests per minute.
-// Remove or increase RATE_LIMIT/RATE_WINDOW_MS if the project moves to a paid
-// tier with higher quotas.
+// Rate limiter — sized for the gemma-4-31b-it free tier (~30 requests per
+// minute), called via OpenRouter with a BYOK Google AI Studio key.
+// Lower to 15 if you see upstream 429s; raise only if you move to a paid tier.
 // ---------------------------------------------------------------------------
-const RATE_LIMIT = 5;          // max calls allowed per window
+const RATE_LIMIT = 30;          // max calls allowed per window
 const RATE_WINDOW_MS = 60_000; // sliding window size in milliseconds (60 seconds)
 
 // Timestamps (ms) of the most recent Gemini call attempts, oldest first.
@@ -79,10 +79,10 @@ export async function getCareerSimilarity(applicant, advisor) {
   }
 
   // Read key at call time so a missing key at import time doesn't crash the module
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
 
   if (!apiKey) {
-    console.warn("[careerSimilarityService] GEMINI_API_KEY is not set — skipping career similarity.");
+    console.warn("[careerSimilarityService] OPENROUTER_API_KEY is not set — skipping career similarity.");
     return { classification: "Unrelated", explanation: "Career similarity unavailable" };
   }
 
@@ -103,28 +103,30 @@ Classify the relationship into EXACTLY ONE of these four categories:
 Respond with ONLY a JSON object in this exact format, no other text:
 {"classification": "Closely Related", "explanation": "one brief sentence explaining why"}`;
 
-  try {
-    const response = await fetch(
-      // gemini-2.5-flash stopped accepting new API keys ahead of its Oct 2026
-      // shutdown; gemini-3.5-flash is the current stable flagship model.
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 150 },
-        }),
-      }
-    );
+    try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        // model: "google/gemini-2.5-flash-lite",
+        model: "google/gemma-4-31b-it:free",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.1,
+        max_tokens: 150,
+        response_format: { type: "json_object" }, // ask for raw JSON
+      }),
+    });
 
     if (!response.ok) {
       const body = await response.text().catch(() => "(unreadable)");
-      throw new Error(`Gemini API returned ${response.status}: ${body}`);
+      throw new Error(`OpenRouter API returned ${response.status}: ${body}`);
     }
 
     const json = await response.json();
-    const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const rawText = json?.choices?.[0]?.message?.content ?? "";
 
     // Strip markdown code fences if Gemini wraps the JSON
     const cleaned = rawText.replace(/```json|```/g, "").trim();

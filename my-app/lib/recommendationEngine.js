@@ -51,7 +51,7 @@ function buildExplanation(scoreBreakdown, advisor) {
  *   8. Reshape each entry into the final output shape
  *
  * @param {string} applicantId - UUID of the applicant row in the applicants table
- * @param {{ limit?: number }} [options] - options.limit caps the number of results (default 5)
+ * @param {{ limit?: number }} [options] - options.limit caps the number of results (default 3)
  *
  * @returns {Promise<Array<{
  *   advisorId: string,
@@ -70,7 +70,7 @@ function buildExplanation(scoreBreakdown, advisor) {
  *   for convenience — consumers building API responses or UIs won't need a second lookup.
  */
 export async function generateRecommendations(applicantId, options = {}) {
-  const limit = options.limit ?? 5;
+  const limit = options.limit ?? 3;
 
   // Clear the Gemini cache so each run starts fresh
   clearSimilarityCache();

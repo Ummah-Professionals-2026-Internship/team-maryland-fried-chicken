@@ -8,7 +8,6 @@ import { getRemainingCapacity } from "./capacityService.js";
  *   1. availability_status !== 'Available'
  *   2. reliability_level === 'Low'
  *   3. Remaining capacity === 0
- *   4. Advisor does not offer the applicant's requested service type
  *
  * currentAssignments is stored directly on the advisor row and is updated
  * by the recommendation accept/undo API workflows.
@@ -39,21 +38,6 @@ export async function filterEligibleAdvisors(advisors, applicant) {
     if (remaining === 0) {
       excluded[advisor.id] =
         `No remaining capacity (${currentAssignments}/${advisor.max_meetings_per_month} meetings used)`;
-      continue;
-    }
-
-    const applicantServiceName = applicant.service_types?.name ?? null;
-    const offeredServiceNames = (advisor.advisor_services ?? [])
-      .map((as) => as.service_types?.name)
-      .filter(Boolean);
-
-    const serviceMatches = applicantServiceName
-      ? offeredServiceNames.includes(applicantServiceName)
-      : false;
-
-    if (!serviceMatches) {
-      excluded[advisor.id] =
-        `Does not offer required service: ${applicantServiceName ?? applicant.service_id}`;
       continue;
     }
 

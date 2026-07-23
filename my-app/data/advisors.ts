@@ -24,7 +24,7 @@
   areasOfExpertise: string[];
   major: string;
   university: string;
-  city: string;
+  county: string;
   country: string;
   stateProvince: string;
   careerHistorySummary: string;
@@ -62,15 +62,19 @@ export const advisors: Advisor[] = [
     ],
     major: "Computer Science",
     university: "University of Toronto",
+    county: "King",
     country: "Canada",
     stateProvince: "Ontario",
     careerHistorySummary:
       "Started as a junior developer at a Toronto startup, grew into senior engineering roles at mid-size tech companies before joining Microsoft. Has led teams of 5-12 engineers across SaaS and cloud infrastructure projects.",
-    uniqueCareerExperiences:[
-    "International Career", "Startup Experience", "Military Experience", "Remote Work", "Immigration Journey"
-  ],
-    mentorshipExperience:
-      "None",
+    uniqueCareerExperiences: [
+      "International Career",
+      "Startup Experience",
+      "Military Experience",
+      "Remote Work",
+      "Immigration Journey",
+    ],
+    mentorshipExperience: "None",
   },
   {
     id: "2",
@@ -97,15 +101,20 @@ export const advisors: Advisor[] = [
     areasOfExpertise: [],
     major: "Business Administration",
     university: "Rutgers University",
+    county: "Middlesex",
     country: "United States",
     stateProvince: "New Jersey",
     careerHistorySummary:
       "Built experience across startup and fintech product teams before becoming a product manager at Stripe.",
     uniqueCareerExperiences: [
-    "Career Change", "Graduate School", "Enterpreneurship","Career Break", "First-Generation College Student", "Military Experience"
-  ],
-    mentorshipExperience:
-      "Less than 1 year"
+      "Career Change",
+      "Graduate School",
+      "Enterpreneurship",
+      "Career Break",
+      "First-Generation College Student",
+      "Military Experience",
+    ],
+    mentorshipExperience: "Less than 1 year",
   },
   {
     id: "3",
@@ -132,15 +141,21 @@ export const advisors: Advisor[] = [
     areasOfExpertise: ["Brand Marketing", "Consumer Strategy", "Networking"],
     major: "Marketing",
     university: "Ohio State University",
+    county: "Hamilton",
     country: "United States",
     stateProvince: "Ohio",
     careerHistorySummary:
       "Developed brand campaigns and consumer marketing strategies across multiple product categories.",
     uniqueCareerExperiences: [
-    "Career Change", "Enterpreneurship", "International Career", "Leadership Experience", "First-Generation College Student", "Remote Work", "Immigration Journey"
-  ],
-    mentorshipExperience:
-      "None"
+      "Career Change",
+      "Enterpreneurship",
+      "International Career",
+      "Leadership Experience",
+      "First-Generation College Student",
+      "Remote Work",
+      "Immigration Journey",
+    ],
+    mentorshipExperience: "None",
   },
   {
     id: "4",
@@ -164,15 +179,19 @@ export const advisors: Advisor[] = [
     lastCareerPrep: "2026-05-10",
     signUpDate: "2023-11-19",
     experienceLevel: "6+ Years",
-    areasOfExpertise: ["Financial Analysis", "Investment Banking", "Interview Prep"],
+    areasOfExpertise: [
+      "Financial Analysis",
+      "Investment Banking",
+      "Interview Prep",
+    ],
     major: "Finance",
     university: "New York University",
+    county: "New York",
     country: "United States",
     stateProvince: "New York",
     careerHistorySummary:
       "Built finance experience through analyst roles focused on financial modeling, reporting, and client-facing projects.",
-    uniqueCareerExperiences: [
-  ],
+    uniqueCareerExperiences: [],
     mentorshipExperience:
       "Mentors students interested in finance, banking, and analyst-track roles.",
   },
@@ -198,18 +217,25 @@ export const advisors: Advisor[] = [
     lastCareerPrep: "2026-05-06",
     signUpDate: "2023-09-22",
     experienceLevel: "9+ Years",
-    areasOfExpertise: ["Healthcare Operations", "Administration", "Career Guidance"],
+    areasOfExpertise: [
+      "Healthcare Operations",
+      "Administration",
+      "Career Guidance",
+    ],
     major: "Healthcare Administration",
     university: "Columbia University",
+    county: "New York",
     country: "United States",
     stateProvince: "New York",
     careerHistorySummary:
       "Worked across hospital operations, patient services, and administrative leadership roles.",
     uniqueCareerExperiences: [
-    "Career Change", "Graduate School", "Enterpreneurship", "International Career"
-  ],
-    mentorshipExperience:
-      "5+ years"
+      "Career Change",
+      "Graduate School",
+      "Enterpreneurship",
+      "International Career",
+    ],
+    mentorshipExperience: "5+ years",
   },
   {
     id: "6",
@@ -236,14 +262,20 @@ export const advisors: Advisor[] = [
     areasOfExpertise: ["Corporate Law", "Legal Careers", "Interview Prep"],
     major: "Political Science",
     university: "University of Chicago",
+    county: "Cook",
     country: "United States",
     stateProvince: "Illinois",
     careerHistorySummary:
       "Built a legal career through corporate law, client advisory work, and international business matters.",
     uniqueCareerExperiences: [
-    "Career Change", "Startup Experience", "Leadership Experience", "Career Break", "First-Generation College Student", "Military Experience", "Remote Work"
-  ],
-    mentorshipExperience:
-      "3-5 years"
+      "Career Change",
+      "Startup Experience",
+      "Leadership Experience",
+      "Career Break",
+      "First-Generation College Student",
+      "Military Experience",
+      "Remote Work",
+    ],
+    mentorshipExperience: "3-5 years",
   },
 ];

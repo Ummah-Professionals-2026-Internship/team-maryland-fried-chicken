@@ -25,7 +25,7 @@ console.log("=".repeat(60));
 console.log(`Applicant ID: ${APPLICANT_ID}\n`);
 
 try {
-  const recommendations = await generateRecommendations(APPLICANT_ID, { limit: 5 });
+  const recommendations = await generateRecommendations(APPLICANT_ID, { limit: 3 });
 
   if (recommendations.length === 0) {
     console.log("\nNo recommendations returned.");
@@ -33,7 +33,6 @@ try {
     console.log("  - Advisor unavailable (availability_status !== 'Available')");
     console.log("  - Reliability level is Low");
     console.log("  - No remaining capacity this month");
-    console.log("  - No advisors offer the applicant's requested service");
     process.exit(0);
   }
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { type SupabaseClient } from "@supabase/supabase-js";
 import { getAllAdvisors } from "@/lib/advisorService";
-import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { createClient } from "@/utils/supabase/server";
 
 type LookupRow = {
   id: string;
@@ -83,8 +83,8 @@ export async function POST(request: Request) {
     );
   }
 
-  // Location fields
-  const locationCity = getString(body.location_city || body.city);
+  // Location fields updated from City to County
+  const locationCounty = getString(body.location_county || body.county);
   const locationState = getString(body.location_state || body.state);
 
   const almaMaters = getStringArray(body.almaMaters);
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
     ["Last Name", lastName],
     ["Email", email],
     ["Gender", gender],
-    ["City", locationCity],
+    ["County", locationCounty],
     ["State", locationState],
     ["Company", company],
     ["Job Title", jobTitle],
@@ -134,27 +134,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const supabase = createSupabaseServerClient();
-
-    const { data: existingAdvisor, error: existingAdvisorError } = await supabase
-      .from("advisors")
-      .select("id")
-      .eq("email", email)
-      .maybeSingle();
-
-    if (existingAdvisorError) {
-      return NextResponse.json(
-        { error: existingAdvisorError.message },
-        { status: 500 },
-      );
-    }
-
-    if (existingAdvisor) {
-      return NextResponse.json(
-        { error: "An advisor submission with this email already exists." },
-        { status: 409 },
-      );
-    }
+    const supabase = createClient();
 
     const { data: advisor, error: advisorError } = await supabase
       .from("advisors")
@@ -164,8 +144,8 @@ export async function POST(request: Request) {
         email,
         gender,
 
-        // Updated location columns
-        location_city: locationCity,
+        // Updated location column mapping
+        location_county: locationCounty,
         location_state: locationState,
 
         alma_mater: almaMaters.join(", "),
@@ -244,6 +224,9 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    console.error("=== UNHANDLED POST /api/advisors EXCEPTION ===");
+    console.error(error);
+    console.error("=============================================");
     return NextResponse.json(
       {
         error:

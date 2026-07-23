@@ -63,9 +63,9 @@ CREATE TABLE IF NOT EXISTS advisors (
     unique_career_experiences   TEXT CHECK (unique_career_experiences IN ('Career Change', 'Graduate School', 'Entrepreneurship', 'International Career', 'Startup Experience', 'Leadership Experience', 'Career Break', 'First-Generation College Student', 'Military Experience', 'Remote Work', 'Immigration Journey')),
     mentorship_experience       TEXT CHECK (mentorship_experience IN ('None', 'Less than 1 year', '1â€“3 years', '3â€“5 years', '5+ years')),
     max_meetings_per_month      INTEGER NOT NULL DEFAULT 3,
-    "currentAssignments"        INTEGER NOT NULL DEFAULT 0,
+    currentAssignments        INTEGER NOT NULL DEFAULT 0,
     additional_notes            TEXT,
-    location_city               TEXT,
+    location_county               TEXT,
     location_state               TEXT,
     availability_status         TEXT NOT NULL DEFAULT 'Available' CHECK (availability_status IN ('Available', 'Unavailable')),
     created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS applicants (
     additional_notes        TEXT,
     resume_url              TEXT,
     source                  TEXT,
-    location_city           TEXT,                         -- Added location fields
+    location_county           TEXT,                         -- Added location fields
     location_state          TEXT,                         -- Added location fields
     submission_date         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     status                  TEXT NOT NULL DEFAULT 'Pending Review'

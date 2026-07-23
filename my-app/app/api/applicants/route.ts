@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import { getAllApplicants } from "@/lib/applicantService";
-import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { createClient } from "@/utils/supabase/server";
+
+const ALLOWED_REFERRAL_SOURCES = [
+  "Word of Mouth",
+  "Instagram",
+  "LinkedIn",
+  "My MSA",
+  "My YM",
+] as const;
 
 function getString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -30,6 +38,7 @@ export async function GET() {
   const { data, error } = await getAllApplicants();
 
   if (error) {
+    console.error("[GET /api/applicants Error]:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
@@ -42,7 +51,8 @@ export async function POST(request: Request) {
 
   try {
     body = (await request.json()) as Record<string, unknown>;
-  } catch {
+  } catch (err) {
+    console.error("[POST /api/applicants - JSON Parsing Error]:", err);
     return NextResponse.json(
       { error: "Invalid request body. Expected JSON." },
       { status: 400 },
@@ -63,8 +73,12 @@ export async function POST(request: Request) {
   }
 
   // Location fields
-  const locationCity = getString(body.location_city || body.city);
-  const locationState = getString(body.location_state || body.state);
+  const locationCounty = getString(
+    body.location_county || body.county,
+  );
+  const locationState = getString(
+    body.location_state || body.state,
+  );
 
   const university = getString(body.university);
   const major = getString(body.major);
@@ -72,7 +86,23 @@ export async function POST(request: Request) {
   const desiredFutureCareer = getString(body.desiredFutureCareer);
   const industry = getString(body.industry);
   const services = getStringArray(body.services);
+
+  // Optional string fields defaulting to empty strings or "Other"
   const additionalNotes = getString(body.additionalNotes);
+  const source = getString(body.source || body.referralSource) || "Other";
+
+  // Strict route-level check for the source column
+  const isPredefinedSource = ALLOWED_REFERRAL_SOURCES.includes(
+    source as (typeof ALLOWED_REFERRAL_SOURCES)[number],
+  );
+  const isValidCustomSource = source.trim().length > 0;
+
+  if (!isPredefinedSource && !isValidCustomSource) {
+    return NextResponse.json(
+      { error: "Invalid referral source value provided." },
+      { status: 400 },
+    );
+  }
 
   const missingFields = [
     ["First Name", firstName],
@@ -80,7 +110,7 @@ export async function POST(request: Request) {
     ["Email", email],
     ["Phone Number", phone],
     ["Gender", gender],
-    ["City", locationCity],
+    ["County", locationCounty],
     ["State", locationState],
     ["University", university],
     ["Major", major],
@@ -103,31 +133,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    const supabase = createSupabaseServerClient();
-
-    const { data: existingApplicant, error: existingApplicantError } =
-      await supabase
-        .from("applicants")
-        .select("id")
-        .eq("email", email)
-        .maybeSingle();
-
-    if (existingApplicantError) {
-      return NextResponse.json(
-        { error: existingApplicantError.message },
-        { status: 500 },
-      );
-    }
-
-    if (existingApplicant) {
-      return NextResponse.json(
-        { error: "An applicant submission with this email already exists." },
-        { status: 409 },
-      );
-    }
+    const supabase = createClient();
 
     const selectedService = services[0];
 
+    // Fetch service type lookup ID
     const { data: serviceType, error: serviceTypeError } =
       await supabase
         .from("service_types")
@@ -136,6 +146,7 @@ export async function POST(request: Request) {
         .maybeSingle();
 
     if (serviceTypeError) {
+      console.error("[POST /api/applicants - Service Type Lookup Error]:", serviceTypeError);
       return NextResponse.json(
         { error: serviceTypeError.message },
         { status: 500 },
@@ -149,6 +160,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Insert applicant record
     const { data: applicant, error: applicantError } =
       await supabase
         .from("applicants")
@@ -159,8 +171,8 @@ export async function POST(request: Request) {
           phone_number: phone,
           gender,
 
-          // Updated location columns
-          location_city: locationCity,
+          // Location columns
+          location_county: locationCounty,
           location_state: locationState,
 
           university,
@@ -169,13 +181,14 @@ export async function POST(request: Request) {
           desired_future_career: desiredFutureCareer,
           industry,
           service_id: serviceType.id,
-          additional_notes: additionalNotes || null,
-          source: "Public Applicant Form",
+          additional_notes: additionalNotes,
+          source,
         })
         .select("id")
         .single();
 
     if (applicantError) {
+      console.error("[POST /api/applicants - Insert Applicant Error]:", applicantError);
       return NextResponse.json(
         { error: applicantError.message },
         { status: 500 },
@@ -190,6 +203,11 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    // Detailed server console log to catch any unhandled runtime exceptions
+    console.error("=== UNHANDLED POST /api/applicants EXCEPTION ===");
+    console.error(error);
+    console.error("================================================");
+
     return NextResponse.json(
       {
         error:

@@ -1,4 +1,4 @@
-import supabase from "../supabaseClient.js";
+import { createClient } from "@/utils/supabase/server";
 
 // Adjust these values to match the actual match_status enum in the matches table.
 // Any match whose status is in this list will NOT count against an advisor's capacity.
@@ -10,6 +10,8 @@ const EXCLUDED_STATUSES = ["Cancelled", "Declined"];
  * @returns {Promise<number>}
  */
 export async function getCurrentMonthlyAssignments(advisorId) {
+  
+  const supabase = await createClient();
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();

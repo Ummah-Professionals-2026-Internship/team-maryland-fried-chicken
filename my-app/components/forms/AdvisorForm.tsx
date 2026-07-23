@@ -37,7 +37,7 @@ type AdvisorFormState = {
   lastName: string;
   email: string;
   gender: string;
-  city: string;
+  county: string;
   state: string;
   almaMaters: string[];
   majors: string[];
@@ -59,7 +59,7 @@ const initialState: AdvisorFormState = {
   lastName: "",
   email: "",
   gender: "",
-  city: "",
+  county: "",
   state: "",
   almaMaters: [],
   majors: [],
@@ -116,7 +116,7 @@ export default function AdvisorForm() {
 
     const missingFields: string[] = [];
 
-    if (!form.city.trim()) missingFields.push("City");
+    if (!form.county.trim()) missingFields.push("County");
     if (!form.state.trim()) missingFields.push("State");
     if (form.almaMaters.length === 0) missingFields.push("Alma Mater(s)");
     if (form.majors.length === 0) missingFields.push("Major(s)");
@@ -228,13 +228,13 @@ export default function AdvisorForm() {
               onChange={(e) => set("gender", e.target.value)}
             />
           </Field>
-          <Field label="City" required htmlFor="advCity" labelClassName="text-lg">
+          <Field label="County" required htmlFor="advCounty" labelClassName="text-lg">
             <TextField
-              id="advCity"
+              id="advCounty"
               required
-              placeholder="e.g. Raleigh"
-              value={form.city}
-              onChange={(e) => set("city", e.target.value)}
+              placeholder="e.g. Wake"
+              value={form.county}
+              onChange={(e) => set("county", e.target.value)}
             />
           </Field>
           <Field label="State" required htmlFor="advState" labelClassName="text-lg">

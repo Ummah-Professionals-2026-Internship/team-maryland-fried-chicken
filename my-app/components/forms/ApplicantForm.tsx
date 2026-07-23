@@ -26,13 +26,22 @@ const REVISED_SERVICE_TYPES = [
   "Interview Prep",
 ] as const;
 
+export const REFERRAL_SOURCES = [
+  "Word of Mouth",
+  "Instagram",
+  "LinkedIn",
+  "My MSA",
+  "My YM",
+  "Other",
+] as const;
+
 type ApplicantFormState = {
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
   gender: string;
-  city: string;
+  county: string;
   state: string;
   university: string;
   major: string;
@@ -41,6 +50,8 @@ type ApplicantFormState = {
   industry: string;
   services: string[];
   additionalNotes: string;
+  referralSource: string;
+  otherReferralSource: string;
 };
 
 const initialState: ApplicantFormState = {
@@ -49,7 +60,7 @@ const initialState: ApplicantFormState = {
   email: "",
   phone: "",
   gender: "",
-  city: "",
+  county: "",
   state: "",
   university: "",
   major: "",
@@ -58,6 +69,8 @@ const initialState: ApplicantFormState = {
   industry: "",
   services: [],
   additionalNotes: "",
+  referralSource: "",
+  otherReferralSource: "",
 };
 
 export default function ApplicantForm() {
@@ -87,7 +100,7 @@ export default function ApplicantForm() {
     setError(null);
 
     const missingFields: string[] = [];
-    if (!form.city.trim()) missingFields.push("City");
+    if (!form.county.trim()) missingFields.push("County");
     if (!form.state.trim()) missingFields.push("State");
     if (form.services.length === 0) missingFields.push("Service Type Requested");
 
@@ -98,6 +111,12 @@ export default function ApplicantForm() {
 
     setIsSubmitting(true);
 
+    // Dynamic referral source mapping: sends custom response if "Other" is picked
+    const finalSource =
+      form.referralSource === "Other"
+        ? form.otherReferralSource.trim()
+        : form.referralSource;
+
     try {
       const response = await fetch("/api/applicants", {
         method: "POST",
@@ -106,6 +125,7 @@ export default function ApplicantForm() {
         },
         body: JSON.stringify({
           ...form,
+          source: finalSource || null,
           resumeName: resume?.name ?? null,
         }),
       });
@@ -222,13 +242,13 @@ export default function ApplicantForm() {
               onChange={(e) => set("gender", e.target.value)}
             />
           </Field>
-          <Field label="City" required htmlFor="city">
+          <Field label="County" required htmlFor="county">
             <TextField
-              id="city"
+              id="county"
               required
-              placeholder="e.g. Raleigh"
-              value={form.city}
-              onChange={(e) => set("city", e.target.value)}
+              placeholder="e.g. Wake"
+              value={form.county}
+              onChange={(e) => set("county", e.target.value)}
             />
           </Field>
           <Field label="State" required htmlFor="state">
@@ -342,6 +362,37 @@ export default function ApplicantForm() {
             onChange={(next) => set("services", next)}
           />
         </Field>
+
+        <Field
+          label="How did you hear about this service?"
+          htmlFor="referralSource"
+          hint="Optional"
+          className="mt-5"
+        >
+          <SelectField
+            id="referralSource"
+            placeholder="Select an option"
+            options={REFERRAL_SOURCES}
+            value={form.referralSource}
+            onChange={(e) => set("referralSource", e.target.value)}
+          />
+        </Field>
+
+        {/* Conditional "Other" Input */}
+        {form.referralSource === "Other" && (
+          <Field
+            label="Please specify"
+            htmlFor="otherReferralSource"
+            className="mt-3"
+          >
+            <TextField
+              id="otherReferralSource"
+              placeholder="Please tell us how you heard about us"
+              value={form.otherReferralSource}
+              onChange={(e) => set("otherReferralSource", e.target.value)}
+            />
+          </Field>
+        )}
 
         <Field label="Additional Notes" htmlFor="additionalNotes" className="mt-5">
           <TextArea

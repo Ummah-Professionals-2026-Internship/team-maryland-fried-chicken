@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getApplicantById } from "@/lib/applicantService";
 import { getAllAdvisors } from "@/lib/advisorService";
 import { generateRecommendations } from "@/lib/recommendationEngine";
-import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { createClient } from "@/utils/supabase/server";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -93,7 +93,7 @@ export async function GET(request, { params }) {
   }
 
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = createClient();
     const { data: advisors, error: advisorsError } = await getAllAdvisors();
 
     if (advisorsError) {
