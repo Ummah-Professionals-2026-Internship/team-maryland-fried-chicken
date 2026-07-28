@@ -56,6 +56,7 @@ type ApplicantCaseManagementProps = {
   applicantId: string;
   applicantStatus: string;
   onStatusChange: (status: string) => void;
+  onRematchPermissionChange?: (allowed: boolean) => void;
 };
 
 type MeetingActivityProps = {
@@ -111,6 +112,7 @@ export function ApplicantCaseManagement({
   applicantId,
   applicantStatus,
   onStatusChange,
+  onRematchPermissionChange,
 }: ApplicantCaseManagementProps) {
   const [form, setForm] = useState<CaseForm>(EMPTY_FORM);
   const [currentStatus, setCurrentStatus] = useState(applicantStatus);
@@ -137,8 +139,14 @@ export function ApplicantCaseManagement({
         }
 
         if (!cancelled) {
-          setForm(formFromResponse(body));
+          const loadedForm = formFromResponse(body);
+
+          setForm(loadedForm);
           setCurrentStatus(body.status ?? applicantStatus);
+          onRematchPermissionChange?.(
+            loadedForm.followUpOutcome ===
+              "Additional Session Requested",
+          );
           setError(null);
         }
       } catch (err) {
@@ -159,7 +167,11 @@ export function ApplicantCaseManagement({
     return () => {
       cancelled = true;
     };
-  }, [applicantId, applicantStatus]);
+  }, [
+    applicantId,
+    applicantStatus,
+    onRematchPermissionChange,
+  ]);
 
   function updateField<Key extends keyof CaseForm>(
     key: Key,
@@ -202,7 +214,13 @@ export function ApplicantCaseManagement({
       }
 
       if (body.applicant) {
-        setForm(formFromResponse(body.applicant));
+        const savedForm = formFromResponse(body.applicant);
+
+        setForm(savedForm);
+        onRematchPermissionChange?.(
+          savedForm.followUpOutcome ===
+            "Additional Session Requested",
+        );
 
         const nextStatus = String(
           body.applicant.status ?? currentStatus,

@@ -1,8 +1,24 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import {
+  archiveActiveMatchForReplacement,
+  MatchReplacementError,
+  restoreArchivedMatch,
+} from "@/lib/matchReplacement";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function restoreRecommendation(
+  supabase,
+  recommendationId,
+  recommendationStatus,
+) {
+  await supabase
+    .from("recommendations")
+    .update({ recommendation_status: recommendationStatus })
+    .eq("id", recommendationId);
+}
 
 // POST /api/applicants/:id/recommendations/accept
 export async function POST(request, { params }) {
@@ -47,11 +63,11 @@ export async function POST(request, { params }) {
     );
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: applicant, error: applicantError } = await supabase
     .from("applicants")
-    .select("id, status")
+    .select("id, status, follow_up_outcome")
     .eq("id", applicantId)
     .maybeSingle();
 
@@ -69,9 +85,16 @@ export async function POST(request, { params }) {
     );
   }
 
+  if (applicant.status === "Closed") {
+    return NextResponse.json(
+      { error: "A closed applicant case cannot be matched." },
+      { status: 409 },
+    );
+  }
+
   const { data: advisor, error: advisorError } = await supabase
     .from("advisors")
-    .select("id, currentAssignments")
+    .select("id, currentAssignments, max_meetings_per_month")
     .eq("id", advisorId)
     .maybeSingle();
 
@@ -89,34 +112,29 @@ export async function POST(request, { params }) {
     );
   }
 
-  const { data: existingMatch, error: existingMatchError } = await supabase
-    .from("matches")
-    .select("id, advisor_id")
-    .eq("applicant_id", applicantId)
-    .eq("match_status", "Active")
-    .maybeSingle();
+  const currentAssignments = Number(
+    advisor.currentAssignments ?? 0,
+  );
+  const maximumAssignments = Number(
+    advisor.max_meetings_per_month ?? 0,
+  );
 
-  if (existingMatchError) {
+  if (currentAssignments >= maximumAssignments) {
     return NextResponse.json(
-      { error: existingMatchError.message },
-      { status: 500 },
-    );
-  }
-
-  if (existingMatch) {
-    return NextResponse.json(
-      { error: "This applicant already has an active match." },
+      { error: "This advisor has no remaining monthly capacity." },
       { status: 409 },
     );
   }
 
-  const { data: recommendation, error: recommendationLookupError } =
-    await supabase
-      .from("recommendations")
-      .select("*")
-      .eq("applicant_id", applicantId)
-      .eq("advisor_id", advisorId)
-      .maybeSingle();
+  const {
+    data: recommendation,
+    error: recommendationLookupError,
+  } = await supabase
+    .from("recommendations")
+    .select("*")
+    .eq("applicant_id", applicantId)
+    .eq("advisor_id", advisorId)
+    .maybeSingle();
 
   if (recommendationLookupError) {
     return NextResponse.json(
@@ -127,8 +145,42 @@ export async function POST(request, { params }) {
 
   if (!recommendation) {
     return NextResponse.json(
-      { error: "Generate recommendations before accepting an advisor." },
+      {
+        error:
+          "Generate recommendations before accepting an advisor.",
+      },
       { status: 409 },
+    );
+  }
+
+  const previousRecommendationStatus =
+    recommendation.recommendation_status ?? "Pending";
+
+  let archivedMatch = null;
+
+  try {
+    archivedMatch = await archiveActiveMatchForReplacement(
+      supabase,
+      {
+        applicant,
+        applicantId,
+        nextAdvisorId: advisorId,
+      },
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to prepare the replacement match.",
+      },
+      {
+        status:
+          error instanceof MatchReplacementError
+            ? error.status
+            : 500,
+      },
     );
   }
 
@@ -149,18 +201,23 @@ export async function POST(request, { params }) {
   }
 
   if (matchingExplanation) {
-    recommendationUpdates.matching_explanation = matchingExplanation;
+    recommendationUpdates.matching_explanation =
+      matchingExplanation;
   }
 
-  const { data: acceptedRecommendation, error: recommendationUpdateError } =
-    await supabase
-      .from("recommendations")
-      .update(recommendationUpdates)
-      .eq("id", recommendation.id)
-      .select()
-      .single();
+  const {
+    data: acceptedRecommendation,
+    error: recommendationUpdateError,
+  } = await supabase
+    .from("recommendations")
+    .update(recommendationUpdates)
+    .eq("id", recommendation.id)
+    .select()
+    .single();
 
   if (recommendationUpdateError) {
+    await restoreArchivedMatch(supabase, archivedMatch);
+
     return NextResponse.json(
       { error: recommendationUpdateError.message },
       { status: 500 },
@@ -179,10 +236,12 @@ export async function POST(request, { params }) {
     .single();
 
   if (matchError) {
-    await supabase
-      .from("recommendations")
-      .update({ recommendation_status: "Pending" })
-      .eq("id", recommendation.id);
+    await restoreRecommendation(
+      supabase,
+      recommendation.id,
+      previousRecommendationStatus,
+    );
+    await restoreArchivedMatch(supabase, archivedMatch);
 
     return NextResponse.json(
       { error: matchError.message },
@@ -190,20 +249,23 @@ export async function POST(request, { params }) {
     );
   }
 
-  const nextCurrentAssignments =
-    Number(advisor.currentAssignments ?? 0) + 1;
+  const nextCurrentAssignments = currentAssignments + 1;
 
   const { error: advisorUpdateError } = await supabase
     .from("advisors")
-    .update({ currentAssignments: nextCurrentAssignments })
+    .update({
+      currentAssignments: nextCurrentAssignments,
+    })
     .eq("id", advisorId);
 
   if (advisorUpdateError) {
     await supabase.from("matches").delete().eq("id", match.id);
-    await supabase
-      .from("recommendations")
-      .update({ recommendation_status: "Pending" })
-      .eq("id", recommendation.id);
+    await restoreRecommendation(
+      supabase,
+      recommendation.id,
+      previousRecommendationStatus,
+    );
+    await restoreArchivedMatch(supabase, archivedMatch);
 
     return NextResponse.json(
       { error: advisorUpdateError.message },
@@ -211,23 +273,34 @@ export async function POST(request, { params }) {
     );
   }
 
+  const applicantUpdates = {
+    status: "Matched",
+  };
+
+  if (archivedMatch) {
+    applicantUpdates.follow_up_outcome = "Awaiting Follow-up";
+  }
+
   const { error: applicantUpdateError } = await supabase
     .from("applicants")
-    .update({ status: "Matched" })
+    .update(applicantUpdates)
     .eq("id", applicantId);
 
   if (applicantUpdateError) {
     await supabase
       .from("advisors")
-      .update({ currentAssignments: Math.max(0, nextCurrentAssignments - 1) })
+      .update({ currentAssignments })
       .eq("id", advisorId);
 
     await supabase.from("matches").delete().eq("id", match.id);
 
-    await supabase
-      .from("recommendations")
-      .update({ recommendation_status: "Pending" })
-      .eq("id", recommendation.id);
+    await restoreRecommendation(
+      supabase,
+      recommendation.id,
+      previousRecommendationStatus,
+    );
+
+    await restoreArchivedMatch(supabase, archivedMatch);
 
     return NextResponse.json(
       { error: applicantUpdateError.message },
@@ -237,10 +310,16 @@ export async function POST(request, { params }) {
 
   return NextResponse.json(
     {
-      message: "Recommendation accepted successfully.",
+      message: archivedMatch
+        ? "Replacement recommendation accepted successfully."
+        : "Recommendation accepted successfully.",
       recommendation: acceptedRecommendation,
       match,
+      archivedMatchId: archivedMatch?.matchId ?? null,
       applicantStatus: "Matched",
+      followUpOutcome: archivedMatch
+        ? "Awaiting Follow-up"
+        : applicant.follow_up_outcome,
       currentAssignments: nextCurrentAssignments,
     },
     { status: 201 },

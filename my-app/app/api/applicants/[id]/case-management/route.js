@@ -72,6 +72,7 @@ export async function GET(request, { params }) {
       "id, match_status, matched_at, created_at, advisors(first_name, last_name)",
     )
     .eq("applicant_id", applicantId)
+    .neq("match_status", "Active")
     .order("matched_at", { ascending: false });
 
   if (activityError) {

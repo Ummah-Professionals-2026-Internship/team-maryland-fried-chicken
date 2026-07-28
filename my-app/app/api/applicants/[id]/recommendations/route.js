@@ -26,6 +26,7 @@ const RECOMMENDATION_SELECT = `
 
 function parseExplanation(value) {
   if (!value) return [];
+
   return String(value)
     .split("\n")
     .map((line) => line.trim())
@@ -34,12 +35,16 @@ function parseExplanation(value) {
 
 function mapPersistedRecommendation(row, advisorsById) {
   const advisor = advisorsById.get(row.advisor_id);
-  const totalScore = Number(row.total_score ?? row.match_score ?? 0);
+  const totalScore = Number(
+    row.total_score ?? row.match_score ?? 0,
+  );
 
   return {
     recommendationId: row.id,
     advisorId: row.advisor_id,
-    advisorName: [advisor?.first_name, advisor?.last_name].filter(Boolean).join(" "),
+    advisorName: [advisor?.first_name, advisor?.last_name]
+      .filter(Boolean)
+      .join(" "),
     jobTitle: advisor?.job_title ?? "",
     company: advisor?.company ?? "",
     industry: advisor?.industry ?? "",
@@ -51,18 +56,43 @@ function mapPersistedRecommendation(row, advisorsById) {
     industryScore: Number(row.industry_score ?? 0),
     experienceScore: Number(row.experience_score ?? 0),
     genderBonus: Number(row.gender_bonus ?? 0),
-    capacityAdjustment: Number(row.capacity_adjustment ?? 0),
+    capacityAdjustment: Number(
+      row.capacity_adjustment ?? 0,
+    ),
     careerSimilarity: row.career_similarity ?? "",
-    currentMonthlyAssignments: Number(advisor?.currentAssignments ?? 0),
-    maxMonthlyAssignments: Number(advisor?.max_meetings_per_month ?? 0),
-    explanation: parseExplanation(row.matching_explanation),
-    recommendationStatus: row.recommendation_status ?? "Pending",
+    currentMonthlyAssignments: Number(
+      advisor?.currentAssignments ?? 0,
+    ),
+    maxMonthlyAssignments: Number(
+      advisor?.max_meetings_per_month ?? 0,
+    ),
+    explanation: parseExplanation(
+      row.matching_explanation,
+    ),
+    recommendationStatus:
+      row.recommendation_status ?? "Pending",
+  };
+}
+
+function recommendationRow(applicantId, rec, index) {
+  return {
+    applicant_id: applicantId,
+    advisor_id: rec.advisorId,
+    match_score: rec.totalScore,
+    rank_position: index + 1,
+    recommendation_status: "Pending",
+    matching_explanation: (rec.explanation ?? []).join("\n"),
+    total_score: rec.totalScore,
+    career_score: rec.careerScore,
+    industry_score: rec.industryScore,
+    experience_score: rec.experienceScore,
+    gender_bonus: rec.genderScore,
+    capacity_adjustment: rec.capacityPenalty,
+    career_similarity: rec.careerSimilarity,
   };
 }
 
 // GET /api/applicants/:id/recommendations
-// - ?persistedOnly=true returns saved recommendations without generating new ones.
-// - Otherwise, returns saved recommendations when present or generates + persists them once.
 export async function GET(request, { params }) {
   const { id } = await params;
 
@@ -73,10 +103,14 @@ export async function GET(request, { params }) {
     );
   }
 
+  const searchParams = new URL(request.url).searchParams;
   const persistedOnly =
-    new URL(request.url).searchParams.get("persistedOnly") === "true";
+    searchParams.get("persistedOnly") === "true";
+  const regenerate =
+    searchParams.get("regenerate") === "true";
 
-  const { data: applicant, error: applicantError } = await getApplicantById(id);
+  const { data: applicant, error: applicantError } =
+    await getApplicantById(id);
 
   if (applicantError || !applicant) {
     if (!applicant || applicantError?.code === "PGRST116") {
@@ -94,69 +128,140 @@ export async function GET(request, { params }) {
 
   try {
     const supabase = createClient();
-    const { data: advisors, error: advisorsError } = await getAllAdvisors();
+
+    const { data: advisors, error: advisorsError } =
+      await getAllAdvisors();
 
     if (advisorsError) {
       throw new Error(advisorsError.message);
     }
 
     const advisorsById = new Map(
-      (advisors ?? []).map((advisor) => [advisor.id, advisor]),
+      (advisors ?? []).map((advisor) => [
+        advisor.id,
+        advisor,
+      ]),
     );
 
-    const { data: existing, error: existingError } = await supabase
-      .from("recommendations")
-      .select(RECOMMENDATION_SELECT)
-      .eq("applicant_id", id)
-      .order("rank_position", { ascending: true });
+    const { data: existing, error: existingError } =
+      await supabase
+        .from("recommendations")
+        .select(RECOMMENDATION_SELECT)
+        .eq("applicant_id", id)
+        .order("rank_position", { ascending: true });
 
     if (existingError) {
       throw new Error(existingError.message);
     }
 
-    if ((existing ?? []).length > 0 || persistedOnly) {
+    if (persistedOnly || (!regenerate && existing.length > 0)) {
       return NextResponse.json(
-        (existing ?? []).map((row) =>
+        existing.map((row) =>
           mapPersistedRecommendation(row, advisorsById),
         ),
       );
     }
 
-    const ranked = await generateRecommendations(id, { limit: 5 });
+    let activeMatch = null;
+    let preservedRecommendation = null;
 
-    if (ranked.length === 0) {
-      await supabase
-        .from("applicants")
-        .update({ status: "Recommendations Generated" })
-        .eq("id", id)
-        .neq("status", "Matched");
+    if (regenerate) {
+      const { data, error: activeMatchError } =
+        await supabase
+          .from("matches")
+          .select("id, advisor_id, recommendation_id")
+          .eq("applicant_id", id)
+          .eq("match_status", "Active")
+          .maybeSingle();
 
-      return NextResponse.json([]);
+      if (activeMatchError) {
+        throw new Error(activeMatchError.message);
+      }
+
+      activeMatch = data;
+
+      if (
+        activeMatch &&
+        applicant.follow_up_outcome !==
+          "Additional Session Requested"
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Save Additional Session Requested before generating replacement recommendations.",
+          },
+          { status: 409 },
+        );
+      }
+
+      if (activeMatch?.recommendation_id) {
+        preservedRecommendation =
+          existing.find(
+            (row) =>
+              row.id === activeMatch.recommendation_id,
+          ) ?? null;
+      }
     }
 
-    const rowsToPersist = ranked.map((rec, index) => ({
-      applicant_id: id,
-      advisor_id: rec.advisorId,
-      match_score: rec.totalScore,
-      rank_position: index + 1,
-      recommendation_status: "Pending",
-      matching_explanation: (rec.explanation ?? []).join("\n"),
-      total_score: rec.totalScore,
-      career_score: rec.careerScore,
-      industry_score: rec.industryScore,
-      experience_score: rec.experienceScore,
-      gender_bonus: rec.genderScore,
-      capacity_adjustment: rec.capacityPenalty,
-      career_similarity: rec.careerSimilarity,
-    }));
+    const ranked = await generateRecommendations(id, {
+      limit: 5,
+    });
 
-    const { data: persisted, error: persistError } = await supabase
-      .from("recommendations")
-      .insert(rowsToPersist)
-      .select(RECOMMENDATION_SELECT);
+    const replacementRanked = activeMatch
+      ? ranked.filter(
+          (rec) =>
+            rec.advisorId !== activeMatch.advisor_id,
+        )
+      : ranked;
 
-    if (persistError) {
-      throw new Error(persistError.message);
+    const rowsToPersist = replacementRanked.map(
+      (rec, index) => recommendationRow(id, rec, index),
+    );
+
+    let persisted = [];
+
+    if (rowsToPersist.length > 0) {
+      const { data, error: persistError } =
+        await supabase
+          .from("recommendations")
+          .insert(rowsToPersist)
+          .select(RECOMMENDATION_SELECT);
+
+      if (persistError) {
+        throw new Error(persistError.message);
+      }
+
+      persisted = data ?? [];
+    }
+
+    if (regenerate) {
+      const staleRecommendationIds = existing
+        .filter(
+          (row) =>
+            row.id !== preservedRecommendation?.id,
+        )
+        .map((row) => row.id);
+
+      if (staleRecommendationIds.length > 0) {
+        const { error: deleteError } = await supabase
+          .from("recommendations")
+          .delete()
+          .in("id", staleRecommendationIds);
+
+        if (deleteError) {
+          if (persisted.length > 0) {
+            await supabase
+              .from("recommendations")
+              .delete()
+              .in(
+                "id",
+                persisted.map((row) => row.id),
+              );
+          }
+
+          throw new Error(deleteError.message);
+        }
+      }
     }
 
     await supabase
@@ -165,10 +270,20 @@ export async function GET(request, { params }) {
       .eq("id", id)
       .neq("status", "Matched");
 
+    const responseRows = [
+      ...(preservedRecommendation
+        ? [preservedRecommendation]
+        : []),
+      ...persisted,
+    ];
+
     return NextResponse.json(
-      (persisted ?? [])
-        .sort((a, b) => (a.rank_position ?? 0) - (b.rank_position ?? 0))
-        .map((row) => mapPersistedRecommendation(row, advisorsById)),
+      responseRows.map((row) =>
+        mapPersistedRecommendation(
+          row,
+          advisorsById,
+        ),
+      ),
     );
   } catch (error) {
     return NextResponse.json(
