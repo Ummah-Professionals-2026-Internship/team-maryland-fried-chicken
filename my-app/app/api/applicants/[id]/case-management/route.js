@@ -18,6 +18,12 @@ const FOLLOW_UP_OUTCOMES = new Set([
   "Additional Session Requested",
 ]);
 
+const ACTIVE_FOLLOW_UP_PHASES = new Set([
+  "1 Week Follow-up",
+  "2 Month Follow-up",
+  "4 Month Follow-up",
+]);
+
 function hasOwn(object, key) {
   return Object.prototype.hasOwnProperty.call(object, key);
 }
@@ -69,7 +75,7 @@ export async function GET(request, { params }) {
   const { data: meetingActivity, error: activityError } = await supabase
     .from("matches")
     .select(
-      "id, match_status, matched_at, created_at, advisors(first_name, last_name)",
+      "id, match_status, matched_at, created_at, advisors(id, first_name, last_name)",
     )
     .eq("applicant_id", applicantId)
     .neq("match_status", "Active")
@@ -142,6 +148,10 @@ export async function PATCH(request, { params }) {
     }
 
     updates.follow_up_phase = phase;
+
+    if (ACTIVE_FOLLOW_UP_PHASES.has(phase)) {
+      updates.status = "Follow Up";
+    }
   }
 
   if (hasOwn(body, "followUpOutcome")) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { CalendarDays, CheckCircle2, Save } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -30,6 +31,7 @@ type CaseForm = {
 };
 
 type AdvisorRelation = {
+  id?: string | null;
   first_name?: string | null;
   last_name?: string | null;
 };
@@ -82,16 +84,24 @@ function formFromResponse(data: CaseResponse): CaseForm {
   };
 }
 
-function advisorName(record: MeetingRecord) {
-  const relation = Array.isArray(record.advisors)
+function advisorRelation(record: MeetingRecord) {
+  return Array.isArray(record.advisors)
     ? record.advisors[0]
     : record.advisors;
+}
+
+function advisorName(record: MeetingRecord) {
+  const relation = advisorRelation(record);
 
   const name = [relation?.first_name, relation?.last_name]
     .filter(Boolean)
     .join(" ");
 
   return name || "Advisor";
+}
+
+function advisorId(record: MeetingRecord) {
+  return advisorRelation(record)?.id ?? null;
 }
 
 function displayDate(value: string | null) {
@@ -498,22 +508,37 @@ export function MeetingActivity({
 
         {!loading && !error && records.length > 0 && (
           <div className="mt-4 space-y-3">
-            {records.map((record) => (
-              <div
-                key={record.id}
-                className="rounded-lg border border-zinc-200 bg-zinc-50 p-3"
-              >
-                <p className="text-sm font-medium text-zinc-900">
-                  {advisorName(record)}
-                </p>
-                <div className="mt-1 flex items-center justify-between gap-2 text-xs text-zinc-500">
-                  <span>{displayDate(record.matched_at ?? record.created_at)}</span>
-                  <span className="rounded-full bg-white px-2 py-0.5">
-                    {record.match_status}
-                  </span>
+            {records.map((record) => {
+              const linkedAdvisorId = advisorId(record);
+
+              return (
+                <div
+                  key={record.id}
+                  className="rounded-lg border border-zinc-200 bg-zinc-50 p-3"
+                >
+                  {linkedAdvisorId ? (
+                    <Link
+                      href={`/advisors/${linkedAdvisorId}`}
+                      className="text-sm font-medium text-[#2F7FA8] hover:underline"
+                    >
+                      {advisorName(record)}
+                    </Link>
+                  ) : (
+                    <p className="text-sm font-medium text-zinc-900">
+                      {advisorName(record)}
+                    </p>
+                  )}
+                  <div className="mt-1 flex items-center justify-between gap-2 text-xs text-zinc-500">
+                    <span>
+                      {displayDate(record.matched_at ?? record.created_at)}
+                    </span>
+                    <span className="rounded-full bg-white px-2 py-0.5">
+                      {record.match_status}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>
