@@ -25,7 +25,7 @@ console.log("=".repeat(60));
 console.log(`Applicant ID: ${APPLICANT_ID}\n`);
 
 try {
-  const recommendations = await generateRecommendations(APPLICANT_ID, { limit: 3 });
+  const recommendations = await generateRecommendations(APPLICANT_ID, { limit: 5 });
 
   if (recommendations.length === 0) {
     console.log("\nNo recommendations returned.");
