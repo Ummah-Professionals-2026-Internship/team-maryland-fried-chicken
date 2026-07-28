@@ -44,6 +44,28 @@ function ChevronIcon({ isOpen }: { isOpen: boolean }) {
   );
 }
 
+function getApplicantServices(
+  raw: Record<string, unknown>,
+): string[] | undefined {
+  const junctionRows = raw.applicant_services as
+    | Array<{ service_types?: { name?: string } | null }>
+    | null
+    | undefined;
+
+  const services = (junctionRows ?? [])
+    .map((row) => row.service_types?.name)
+    .filter((name): name is string => Boolean(name));
+
+  if (services.length > 0) {
+    return services;
+  }
+
+  const legacyService = (
+    raw.service_types as { name?: string } | null
+  )?.name;
+
+  return legacyService ? [legacyService] : undefined;
+}
 // Maps a raw Supabase applicant row to the Applicant UI type
 function mapApplicant(raw: Record<string, unknown>): Applicant {
   return {
@@ -52,9 +74,7 @@ function mapApplicant(raw: Record<string, unknown>): Applicant {
     category: String(raw.industry ?? raw.category ?? ""),
     desiredCareer: String(raw.desired_future_career ?? raw.desiredCareer ?? ""),
     yearsExp: typeof raw.yearsExp === "number" ? raw.yearsExp : undefined,
-    services: (raw.service_types as { name?: string } | null)?.name
-      ? [(raw.service_types as { name?: string }).name!]
-      : undefined,
+    services: getApplicantServices(raw),
     submitted: raw.submission_date
       ? String(raw.submission_date).split("T")[0]
       : String(raw.submitted ?? ""),
@@ -272,7 +292,7 @@ export default function ApplicantsPage() {
                                   </p>
 
                                   <div className="flex flex-wrap gap-1 mt-1.5">
-                                    {(applicant.services ?? []).slice(0, 2).map((service) => (
+                                    {(applicant.services ?? []).map((service) => (
                                       <span
                                         key={service}
                                         className="text-xs bg-slate-100 text-[#007CA6] px-1.5 py-0.5 rounded"
@@ -280,12 +300,6 @@ export default function ApplicantsPage() {
                                         {service}
                                       </span>
                                     ))}
-
-                                    {(applicant.services ?? []).length > 2 && (
-                                      <span className="text-xs text-slate-600">
-                                        +{applicant.services!.length - 2}
-                                      </span>
-                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -321,7 +335,7 @@ export default function ApplicantsPage() {
                               </div>
 
                               <div className="col-span-2 flex flex-wrap gap-1">
-                                {(applicant.services ?? []).slice(0, 2).map((service) => (
+                                {(applicant.services ?? []).map((service) => (
                                   <span
                                     key={service}
                                     className="text-xs bg-slate-100 text-[#007CA6] px-1.5 py-0.5 rounded"
@@ -329,12 +343,6 @@ export default function ApplicantsPage() {
                                     {service}
                                   </span>
                                 ))}
-
-                                {(applicant.services ?? []).length > 2 && (
-                                  <span className="text-xs text-slate-600">
-                                    +{applicant.services!.length - 2}
-                                  </span>
-                                )}
                               </div>
 
                               <div className="col-span-2">

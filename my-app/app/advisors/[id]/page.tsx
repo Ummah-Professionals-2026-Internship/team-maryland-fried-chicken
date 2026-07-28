@@ -149,6 +149,8 @@ function mapAdvisor(raw: Record<string, unknown>): Advisor {
     id: String(raw.id ?? ""),
     initials,
     name: fullName,
+    phone: String(raw.phone_number ?? raw.phone ?? ""),
+    linkedinUrl: String(raw.linkedin_url ?? raw.linkedinUrl ?? ""),
     role: String(raw.job_title ?? raw.role ?? ""),
     jobTitle: String(raw.job_title ?? raw.jobTitle ?? ""),
     industry: rawIndustry,
@@ -180,11 +182,13 @@ function mapAdvisor(raw: Record<string, unknown>): Advisor {
     stateProvince: String(raw.location_state ?? raw.stateProvince ?? ""),
     careerHistorySummary: String(raw.career_history_summary ?? raw.careerHistorySummary ?? ""),
     mentorshipExperience: String(raw.mentorship_experience ?? raw.mentorshipExperience ?? ""),
-    uniqueCareerExperiences: Array.isArray(raw.uniqueCareerExperiences)
-      ? raw.uniqueCareerExperiences
-      : raw.unique_career_experiences
-      ? [String(raw.unique_career_experiences)]
-      : [],
+    uniqueCareerExperiences: Array.isArray(raw.unique_career_experiences)
+      ? raw.unique_career_experiences.map(String)
+      : Array.isArray(raw.uniqueCareerExperiences)
+        ? raw.uniqueCareerExperiences.map(String)
+        : raw.unique_career_experiences
+          ? [String(raw.unique_career_experiences)]
+          : [],
   };
 }
 
@@ -484,6 +488,25 @@ export default function AdvisorProfilePage() {
                 <InfoRow label="Sign Up Date">{advisor.signUpDate}</InfoRow>
               </InfoSection>
 
+              <InfoSection title="Contact">
+                <InfoRow label="Phone Number">
+                  {advisor.phone?.trim() ? advisor.phone : <NotProvided />}
+                </InfoRow>
+                <InfoRow label="LinkedIn">
+                  {advisor.linkedinUrl?.trim() ? (
+                    <a
+                      href={advisor.linkedinUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[#007CA6] underline-offset-2 hover:underline"
+                    >
+                      View LinkedIn Profile
+                    </a>
+                  ) : (
+                    <NotProvided />
+                  )}
+                </InfoRow>
+              </InfoSection>
               <InfoSection title="Employment">
                 <InfoRow label="Employer">{advisor.company}</InfoRow>
                 <InfoRow label="Job Title">{advisor.jobTitle}</InfoRow>

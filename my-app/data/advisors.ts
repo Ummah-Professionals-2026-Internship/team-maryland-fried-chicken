@@ -1,7 +1,9 @@
-﻿export type Advisor = {
+export type Advisor = {
   id: string;
   initials: string;
   name: string;
+  phone?: string;
+  linkedinUrl?: string;
   role: string;
   jobTitle: string;
   industry: string;
@@ -24,7 +26,8 @@
   areasOfExpertise: string[];
   major: string;
   university: string;
-  county: string;
+  city?: string;
+  county?: string;
   country: string;
   stateProvince: string;
   careerHistorySummary: string;
