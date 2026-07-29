@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import {createClient} from "@/utils/supabase/server";
 
 // POST /api/advisors/reset-monthly-capacity
 //
@@ -35,7 +35,7 @@ export async function POST(request) {
   }
 
   // ── Reset ──────────────────────────────────────────────────────────────────
-  const supabase = createSupabaseServerClient();
+  const supabase = createClient();
 
   const { data, error } = await supabase
     .from("advisors")
