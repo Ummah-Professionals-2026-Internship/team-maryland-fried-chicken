@@ -66,9 +66,9 @@ function mapAdvisor(raw: Record<string, unknown>): Advisor {
   const rawIndustry = String(raw.industry ?? raw.field ?? "");
   const field = industryMap[rawIndustry] ?? rawIndustry;
 
-  const city = String(raw.location_city ?? "");
+  const county = String(raw.location_county ?? "");
   const state = String(raw.location_state ?? "");
-  const location = [city, state].filter(Boolean).join(", ") || String(raw.location ?? "");
+  const location = [county, state].filter(Boolean).join(", ") || String(raw.location ?? "");
 
   return {
     id: String(raw.id ?? ""),
@@ -100,7 +100,7 @@ function mapAdvisor(raw: Record<string, unknown>): Advisor {
       .filter(Boolean) as string[] ?? [],
     major: String(raw.major ?? ""),
     university: String(raw.alma_mater ?? raw.university ?? ""),
-    city: String(raw.location_city ?? ""),
+    county: String(raw.location_county ?? ""),
     country: String(raw.country ?? ""),
     stateProvince: String(raw.location_state ?? raw.stateProvince ?? ""),
     careerHistorySummary: String(raw.career_history_summary ?? raw.careerHistorySummary ?? ""),
@@ -144,7 +144,7 @@ export default function AdvisorsPage() {
   }
 
   useEffect(() => {
-    fetchAdvisors();
+    void Promise.resolve().then(fetchAdvisors);
   }, []);
 
   const filteredAdvisors = useMemo(() => {

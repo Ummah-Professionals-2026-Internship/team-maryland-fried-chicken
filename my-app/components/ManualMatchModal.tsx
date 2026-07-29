@@ -30,7 +30,11 @@ type ManualMatchResult = {
   advisorName: string;
   jobTitle: string;
   company: string;
+  industry: string;
+  experienceLevel: string;
+  reliabilityLevel: string;
   currentAssignments: number;
+  maxMonthlyAssignments: number;
 };
 
 const INDUSTRY_OPTIONS = [
@@ -205,9 +209,13 @@ export default function ManualMatchModal({
         advisorName: selectedAdvisor.advisorName,
         jobTitle: selectedAdvisor.jobTitle,
         company: selectedAdvisor.company,
+        industry: selectedAdvisor.industry,
+        experienceLevel: selectedAdvisor.experienceLevel,
+        reliabilityLevel: selectedAdvisor.reliabilityLevel,
         currentAssignments: Number(
           body.currentAssignments ?? selectedAdvisor.currentMonthlyAssignments + 1,
         ),
+        maxMonthlyAssignments: selectedAdvisor.maxMonthlyAssignments,
       });
       onOpenChange(false);
     } catch (err) {

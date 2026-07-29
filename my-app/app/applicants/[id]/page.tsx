@@ -3,17 +3,34 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, Clock, RotateCcw, Sparkles, Users } from "lucide-react";
+
+import { CheckCircle2, ClipboardList, FileText, Clock, RotateCcw, Sparkles, Users } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { type Applicant } from "@/components/ui/applicant_table";
 import ManualMatchModal from "@/components/ManualMatchModal";
+import {
+  ApplicantCaseManagement,
+  MeetingActivity,
+} from "@/components/applicants/ApplicantCaseManagement";
 
 type ManualMatchInfo = {
   advisorId: string;
   advisorName: string;
   jobTitle: string;
   company: string;
+  industry: string;
+  experienceLevel: string;
+  reliabilityLevel: string;
+  currentMonthlyAssignments: number;
+  maxMonthlyAssignments: number;
 };
 
 // Shape returned by GET /api/applicants/:id/recommendations
@@ -98,6 +115,8 @@ function mapApplicant(raw: Record<string, unknown>): Applicant {
     careerGoal: String(raw.desired_future_career ?? raw.careerGoal ?? ""),
     industryInterest: String(raw.industry ?? raw.industryInterest ?? ""),
     education: String(raw.academic_standing ?? raw.education ?? ""),
+    referralSource: raw.source ? String(raw.source) : undefined,
+    resumeUrl: raw.resume_url ? String(raw.resume_url) : undefined,
     skills: Array.isArray(raw.skills) ? raw.skills : [],
     gender: raw.gender ? String(raw.gender) : undefined,
     university: raw.university ? String(raw.university) : undefined,
@@ -106,6 +125,19 @@ function mapApplicant(raw: Record<string, unknown>): Applicant {
     additionalNotes: raw.additional_notes ? String(raw.additional_notes) : undefined,
   };
 }
+
+// Matches the industry CHECK constraint on the applicants table (migrations/init.sql)
+const INDUSTRY_OPTIONS = [
+  "Business",
+  "Education",
+  "Engineering",
+  "Finance",
+  "Healthcare",
+  "Information Technology",
+  "Law",
+  "Social Services",
+  "Other",
+] as const;
 
 export default function ApplicantDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -124,25 +156,91 @@ export default function ApplicantDetailPage() {
   const [isUndoing, setIsUndoing] = useState(false);
   const [manualMatchOpen, setManualMatchOpen] = useState(false);
   const [manualMatch, setManualMatch] = useState<ManualMatchInfo | null>(null);
+  const [caseManagementOpen, setCaseManagementOpen] = useState(false);
+  const [additionalSessionRequested, setAdditionalSessionRequested] =
+    useState(false);
 
   function handleManualMatched(result: {
     advisorId: string;
     advisorName: string;
     jobTitle: string;
     company: string;
+    industry: string;
+    experienceLevel: string;
+    reliabilityLevel: string;
     currentAssignments: number;
+    maxMonthlyAssignments: number;
   }) {
     setManualMatch({
       advisorId: result.advisorId,
       advisorName: result.advisorName,
       jobTitle: result.jobTitle,
       company: result.company,
+      industry: result.industry,
+      experienceLevel: result.experienceLevel,
+      reliabilityLevel: result.reliabilityLevel,
+      currentMonthlyAssignments: result.currentAssignments,
+      maxMonthlyAssignments: result.maxMonthlyAssignments,
     });
     setAcceptedAdvisorId(result.advisorId);
+    setRecommendations((current) =>
+      current.map((item) =>
+        item.recommendationStatus === "Accepted"
+          ? {
+              ...item,
+              recommendationStatus: "Rejected",
+            }
+          : item,
+      ),
+    );
     setApplicant((current) =>
       current ? { ...current, status: "Matched" } : current,
     );
+    setAdditionalSessionRequested(false);
     setAcceptError(null);
+  }
+
+  // Industry is editable — advisors report it is frequently mis-filed and use
+  // it mainly as a grouping tool.
+  const [editingIndustry, setEditingIndustry] = useState(false);
+  const [draftIndustry, setDraftIndustry] = useState("");
+  const [savingIndustry, setSavingIndustry] = useState(false);
+  const [industryError, setIndustryError] = useState<string | null>(null);
+
+  async function handleSaveIndustry() {
+    setSavingIndustry(true);
+    setIndustryError(null);
+
+    try {
+      const response = await fetch(`/api/applicants/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ industry: draftIndustry }),
+      });
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(body.error ?? `Server error: ${response.status}`);
+      }
+
+      setApplicant((current) =>
+        current
+          ? {
+              ...current,
+              industryInterest: body.industry ?? draftIndustry,
+              category: body.industry ?? draftIndustry,
+            }
+          : current,
+      );
+      setEditingIndustry(false);
+    } catch (err) {
+      setIndustryError(
+        err instanceof Error ? err.message : "Failed to update industry.",
+      );
+    } finally {
+      setSavingIndustry(false);
+    }
   }
 
   async function handleAccept(rec: Recommendation, rankPosition: number) {
@@ -173,22 +271,34 @@ export default function ApplicantDetailPage() {
       }
 
       setAcceptedAdvisorId(rec.advisorId);
+      setManualMatch(null);
       setRecommendations((current) =>
-        current.map((item) =>
-          item.advisorId === rec.advisorId
-            ? {
-                ...item,
-                recommendationStatus: "Accepted",
-                currentMonthlyAssignments: Number(
-                  body.currentAssignments ?? item.currentMonthlyAssignments + 1,
-                ),
-              }
-            : item,
-        ),
+        current.map((item) => {
+          if (item.advisorId === rec.advisorId) {
+            return {
+              ...item,
+              recommendationStatus: "Accepted",
+              currentMonthlyAssignments: Number(
+                body.currentAssignments ??
+                  item.currentMonthlyAssignments + 1,
+              ),
+            };
+          }
+
+          if (item.recommendationStatus === "Accepted") {
+            return {
+              ...item,
+              recommendationStatus: "Rejected",
+            };
+          }
+
+          return item;
+        }),
       );
       setApplicant((current) =>
         current ? { ...current, status: "Matched" } : current,
       );
+      setAdditionalSessionRequested(false);
     } catch (err) {
       setAcceptError(
         err instanceof Error
@@ -276,6 +386,9 @@ export default function ApplicantDetailPage() {
 
         const data = await response.json();
         setApplicant(mapApplicant(data));
+        setAdditionalSessionRequested(
+          data.follow_up_outcome === "Additional Session Requested",
+        );
 
         const recommendationsResponse = await fetch(
           `/api/applicants/${id}/recommendations?persistedOnly=true`,
@@ -337,10 +450,11 @@ export default function ApplicantDetailPage() {
     setRecLoading(true);
     setRecError(null);
     setAcceptError(null);
-    setAcceptedAdvisorId(null);
 
     try {
-      const response = await fetch(`/api/applicants/${id}/recommendations`);
+      const response = await fetch(
+        `/api/applicants/${id}/recommendations?regenerate=true`,
+      );
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
@@ -356,6 +470,10 @@ export default function ApplicantDetailPage() {
       setHasGenerated(true);
     }
   }
+
+  const matchActionsDisabled =
+    applicant?.status === "Matched" &&
+    !additionalSessionRequested;
 
   return (
     <MainLayout>
@@ -422,15 +540,19 @@ export default function ApplicantDetailPage() {
                     className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
                       applicant.status === "Matched"
                         ? "bg-emerald-50 text-emerald-700"
-                        : "bg-amber-50 text-amber-700"
+                        : applicant.status === "Closed"
+                          ? "bg-zinc-100 text-zinc-700"
+                          : applicant.status === "Recommendations Generated"
+                            ? "bg-sky-50 text-sky-700"
+                            : "bg-amber-50 text-amber-700"
                     }`}
                   >
-                    {applicant.status === "Matched" ? (
+                    {applicant.status === "Matched" || applicant.status === "Closed" ? (
                       <CheckCircle2 className="h-3.5 w-3.5" />
                     ) : (
                       <Clock className="h-3.5 w-3.5" />
                     )}
-                    {applicant.status === "Matched" ? "Matched" : "Awaiting Match"}
+                    {applicant.status}
                   </span>
                 </div>
 
@@ -470,7 +592,61 @@ export default function ApplicantDetailPage() {
                       <span className="text-zinc-900 font-medium text-right max-w-[60%]">{applicant.major}</span>
                     </div>
                   )}
+                  {applicant.education && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-500">Academic Standing</span>
+                      <span className="text-zinc-900 font-medium text-right max-w-[60%]">{applicant.education}</span>
+                    </div>
+                  )}
+
                 </div>
+
+                <Dialog
+                  open={caseManagementOpen}
+                  onOpenChange={setCaseManagementOpen}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setCaseManagementOpen(true)}
+                    className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#2F7FA8] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#286E92]"
+                  >
+                    <ClipboardList className="h-4 w-4" />
+                    Manage Case
+                  </button>
+
+                  <DialogContent className="max-w-3xl p-0">
+                    <DialogHeader className="sr-only">
+                      <DialogTitle>
+                        Applicant Case Management
+                      </DialogTitle>
+                      <DialogDescription>
+                        Track meetings, follow-ups, outcomes, and
+                        internal notes.
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <ApplicantCaseManagement
+                      applicantId={id}
+                      applicantStatus={
+                        applicant.status ?? "Pending Review"
+                      }
+                      onStatusChange={(status) =>
+                        setApplicant((current) =>
+                          current
+                            ? {
+                                ...current,
+                                status:
+                                  status as Applicant["status"],
+                              }
+                            : current,
+                        )
+                      }
+                      onRematchPermissionChange={
+                        setAdditionalSessionRequested
+                      }
+                    />
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
 
@@ -478,14 +654,67 @@ export default function ApplicantDetailPage() {
             <Card className="border-zinc-200">
               <CardContent className="p-6">
                 <h2 className="font-semibold text-zinc-900">Career Details</h2>
-
                 <div className="mt-4 space-y-4 text-sm">
                   <Detail label="Career Goal" value={applicant.careerGoal} />
-                  <Detail
-                    label="Industry Interest"
-                    value={applicant.industryInterest}
-                  />
-                  <Detail label="Education" value={applicant.education} />
+
+                  {/* Industry is editable — used mainly as a grouping tool */}
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-zinc-500">Industry Interest</p>
+                      {!editingIndustry && (
+                        <button
+                          onClick={() => {
+                            setDraftIndustry(applicant.industryInterest ?? "");
+                            setIndustryError(null);
+                            setEditingIndustry(true);
+                          }}
+                          className="text-xs font-medium text-[#2F7FA8] hover:underline"
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </div>
+
+                    {editingIndustry ? (
+                      <div className="mt-1 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <select
+                            value={draftIndustry}
+                            onChange={(e) => setDraftIndustry(e.target.value)}
+                            disabled={savingIndustry}
+                            className="rounded-lg border border-slate-300 px-2 py-1 text-sm text-zinc-900"
+                          >
+                            {INDUSTRY_OPTIONS.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={handleSaveIndustry}
+                            disabled={savingIndustry || !draftIndustry}
+                            className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                          >
+                            {savingIndustry ? "Saving..." : "Save"}
+                          </button>
+                          <button
+                            onClick={() => setEditingIndustry(false)}
+                            disabled={savingIndustry}
+                            className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        {industryError && (
+                          <p className="text-xs font-medium text-red-600">{industryError}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-zinc-900">{applicant.industryInterest ?? "—"}</p>
+                    )}
+                  </div>
+
+                  <Detail label="Referral Source" value={applicant.referralSource} />
                 </div>
               </CardContent>
             </Card>
@@ -514,6 +743,27 @@ export default function ApplicantDetailPage() {
                 )}
               </CardContent>
             </Card>
+                        {/* Resume card */}
+            <Card className="border-zinc-200">
+              <CardContent className="p-6">
+                <h2 className="font-semibold text-zinc-900">Resume</h2>
+                {applicant.resumeUrl ? (
+                  <a
+                    href={applicant.resumeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-slate-50"
+                  >
+                    <FileText className="h-4 w-4" />
+                    View / Download Resume
+                  </a>
+                ) : (
+                  <p className="mt-3 text-sm italic text-slate-400">
+                    No resume provided.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Additional Notes card */}
             {applicant.additionalNotes && (
@@ -526,6 +776,10 @@ export default function ApplicantDetailPage() {
                 </CardContent>
               </Card>
             )}
+            <MeetingActivity
+              applicantId={id}
+              refreshKey={acceptedAdvisorId}
+            />
           </div>
 
           {/* RIGHT COLUMN */}
@@ -546,7 +800,7 @@ export default function ApplicantDetailPage() {
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={handleGenerateRecommendations}
-                    disabled={recLoading || applicant.status === "Matched"}
+                    disabled={recLoading || matchActionsDisabled || applicant.status === "Closed"}
                     className="inline-flex items-center gap-2 rounded-lg bg-[#2F7FA8] px-6 py-3 text-base font-medium text-white hover:bg-[#286E92] disabled:opacity-60"
                   >
                     <Sparkles className="h-5 w-5" />
@@ -554,7 +808,7 @@ export default function ApplicantDetailPage() {
                   </button>
                   <button
                     onClick={() => setManualMatchOpen(true)}
-                    disabled={applicant.status === "Matched"}
+                    disabled={matchActionsDisabled || applicant.status === "Closed"}
                     className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-6 py-3 text-base font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
                   >
                     <Users className="h-5 w-5" />
@@ -577,9 +831,6 @@ export default function ApplicantDetailPage() {
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                        Manually Matched
-                      </p>
                       <Link
                         href={`/advisors/${manualMatch.advisorId}`}
                         className="font-semibold text-zinc-900 hover:underline"
@@ -590,13 +841,26 @@ export default function ApplicantDetailPage() {
                         {manualMatch.jobTitle} · {manualMatch.company}
                       </p>
                     </div>
+
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-sky-50 px-3 py-1 text-sm font-semibold text-sky-700">
+                      <Users className="h-3.5 w-3.5" />
+                      Manual Match
+                    </span>
+                  </div>
+
+                  <AdvisorDetailsGrid
+                    industry={manualMatch.industry}
+                    experienceLevel={manualMatch.experienceLevel}
+                    reliabilityLevel={manualMatch.reliabilityLevel}
+                    currentMonthlyAssignments={manualMatch.currentMonthlyAssignments}
+                    maxMonthlyAssignments={manualMatch.maxMonthlyAssignments}
+                  />
+
+                  <div className="mt-4 flex items-center gap-2 border-t border-zinc-100 pt-4">
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       Matched
                     </span>
-                  </div>
-
-                  <div className="mt-4 flex items-center gap-2 border-t border-zinc-100 pt-4">
                     <button
                       onClick={handleUndo}
                       disabled={isUndoing}
@@ -664,7 +928,9 @@ export default function ApplicantDetailPage() {
                     acceptedAdvisorId === rec.advisorId ||
                     rec.recommendationStatus === "Accepted";
                   const isBlocked =
-                    acceptedAdvisorId !== null && !isAccepted;
+                    acceptedAdvisorId !== null &&
+                    !isAccepted &&
+                    !additionalSessionRequested;
 
                   return (
                     <Card
@@ -690,24 +956,13 @@ export default function ApplicantDetailPage() {
                           </span>
                         </div>
 
-                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-                          <Detail label="Industry" value={rec.industry} />
-                          <Detail label="Experience Level" value={rec.experienceLevel} />
-                          <div>
-                            <p className="text-zinc-500">Reliability</p>
-                            <span
-                              className={`mt-0.5 inline-block rounded px-2 py-0.5 text-xs font-medium ${getReliabilityStyles(
-                                rec.reliabilityLevel,
-                              )}`}
-                            >
-                              {rec.reliabilityLevel}
-                            </span>
-                          </div>
-                          <Detail
-                            label="Monthly Assignments"
-                            value={`${rec.currentMonthlyAssignments} / ${rec.maxMonthlyAssignments}`}
-                          />
-                        </div>
+                        <AdvisorDetailsGrid
+                          industry={rec.industry}
+                          experienceLevel={rec.experienceLevel}
+                          reliabilityLevel={rec.reliabilityLevel}
+                          currentMonthlyAssignments={rec.currentMonthlyAssignments}
+                          maxMonthlyAssignments={rec.maxMonthlyAssignments}
+                        />
 
                         {rec.explanation?.length > 0 && (
                           <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-zinc-600">
@@ -773,6 +1028,43 @@ function Detail({ label, value }: { label: string; value?: string }) {
     <div>
       <p className="text-zinc-500">{label}</p>
       <p className="text-zinc-900">{value ?? "—"}</p>
+    </div>
+  );
+}
+
+// Shared advisor attribute grid — used by both automatic recommendation cards
+// and the manual match card so they stay visually and structurally identical.
+function AdvisorDetailsGrid({
+  industry,
+  experienceLevel,
+  reliabilityLevel,
+  currentMonthlyAssignments,
+  maxMonthlyAssignments,
+}: {
+  industry: string;
+  experienceLevel: string;
+  reliabilityLevel: string;
+  currentMonthlyAssignments: number;
+  maxMonthlyAssignments: number;
+}) {
+  return (
+    <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+      <Detail label="Industry" value={industry} />
+      <Detail label="Experience Level" value={experienceLevel} />
+      <div>
+        <p className="text-zinc-500">Reliability</p>
+        <span
+          className={`mt-0.5 inline-block rounded px-2 py-0.5 text-xs font-medium ${getReliabilityStyles(
+            reliabilityLevel,
+          )}`}
+        >
+          {reliabilityLevel}
+        </span>
+      </div>
+      <Detail
+        label="Monthly Assignments"
+        value={`${currentMonthlyAssignments} / ${maxMonthlyAssignments}`}
+      />
     </div>
   );
 }

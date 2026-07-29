@@ -96,6 +96,14 @@ export async function POST(request: Request) {
   const firstName = getString(body.firstName);
   const lastName = getString(body.lastName);
   const email = getString(body.email).toLowerCase();
+
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return NextResponse.json(
+      { error: "Email must be a valid email address." },
+      { status: 400 },
+    );
+  }
+
   const countryCode = getString(body.countryCode);
   const phoneInput = getString(body.phone);
   const linkedinUrl = getString(body.linkedinUrl);

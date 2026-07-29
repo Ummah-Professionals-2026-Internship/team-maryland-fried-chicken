@@ -6,6 +6,17 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 // Matches the CHECK constraints on the advisors table (migrations/init.sql)
 const ALLOWED_AVAILABILITY = ["Available", "Unavailable"];
 const ALLOWED_RELIABILITY = ["High", "Medium", "Low"];
+const ALLOWED_INDUSTRY = [
+  "Business",
+  "Education",
+  "Engineering",
+  "Finance",
+  "Healthcare",
+  "Information Technology",
+  "Law",
+  "Social Services",
+  "Other",
+];
 
 // GET /api/advisors/:id
 // Reads the dynamic [id] segment from the URL and returns the matching advisor
@@ -86,9 +97,21 @@ export async function PATCH(request, { params }) {
     updates.reliability_level = body.reliability_level;
   }
 
+  if (body.industry !== undefined) {
+    if (!ALLOWED_INDUSTRY.includes(body.industry)) {
+      return NextResponse.json(
+        {
+          error: `industry must be one of: ${ALLOWED_INDUSTRY.join(", ")}`,
+        },
+        { status: 400 },
+      );
+    }
+    updates.industry = body.industry;
+  }
+
   if (Object.keys(updates).length === 0) {
     return NextResponse.json(
-      { error: "No valid fields to update. Expected availability_status and/or reliability_level." },
+      { error: "No valid fields to update. Expected availability_status, reliability_level, and/or industry." },
       { status: 400 },
     );
   }

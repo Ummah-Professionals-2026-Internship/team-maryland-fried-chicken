@@ -2,14 +2,14 @@ export type Advisor = {
   id: string;
   initials: string;
   name: string;
-  phone?: string;
-  linkedinUrl?: string;
   role: string;
   jobTitle: string;
   industry: string;
   field: string;
   company: string;
   location: string;
+  phone?: string;
+  linkedinUrl?: string;
   availability: string;
   serviceTypes: string[];
   uniqueCareerExperiences: string[];

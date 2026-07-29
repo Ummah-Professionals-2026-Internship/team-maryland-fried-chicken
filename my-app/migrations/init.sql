@@ -112,6 +112,13 @@ CREATE TABLE IF NOT EXISTS applicants (
     source                  TEXT,
     location_county           TEXT,                         -- Added location fields
     location_state          TEXT,                         -- Added location fields
+    follow_up_phase         TEXT NOT NULL DEFAULT 'Not Started'
+                                CHECK (follow_up_phase IN ('Not Started', '1 Week Follow-up', '2 Month Follow-up', '4 Month Follow-up', 'Follow-up Complete')),
+    follow_up_outcome       TEXT
+                                CHECK (follow_up_outcome IS NULL OR follow_up_outcome IN ('Awaiting Follow-up', 'No Additional Session Needed', 'Additional Session Requested')),
+    last_meeting_date       DATE,
+    next_follow_up_date     DATE,
+    internal_notes          TEXT,
     submission_date         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     status                  TEXT NOT NULL DEFAULT 'Pending Review'
                                  CHECK (status IN ('Pending Review', 'Recommendations Generated', 'Matched', 'Closed')),

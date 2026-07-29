@@ -6,9 +6,22 @@ import Link from "next/link";
 import { Check, Pencil, X } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { type Advisor } from "@/data/advisors";
+import { formatPhone } from "@/lib/formatPhone";
 
 const AVAILABILITY_OPTIONS = ["Available", "Unavailable"] as const;
 const RELIABILITY_OPTIONS = ["High", "Medium", "Low"] as const;
+// Matches the industry CHECK constraint on the advisors table (migrations/init.sql)
+const INDUSTRY_OPTIONS = [
+  "Business",
+  "Education",
+  "Engineering",
+  "Finance",
+  "Healthcare",
+  "Information Technology",
+  "Law",
+  "Social Services",
+  "Other",
+] as const;
 
 const NotProvided = () => (
   <span className="text-sm italic text-slate-400">Not Provided</span>
@@ -149,8 +162,6 @@ function mapAdvisor(raw: Record<string, unknown>): Advisor {
     id: String(raw.id ?? ""),
     initials,
     name: fullName,
-    phone: String(raw.phone_number ?? raw.phone ?? ""),
-    linkedinUrl: String(raw.linkedin_url ?? raw.linkedinUrl ?? ""),
     role: String(raw.job_title ?? raw.role ?? ""),
     jobTitle: String(raw.job_title ?? raw.jobTitle ?? ""),
     industry: rawIndustry,
@@ -164,8 +175,13 @@ function mapAdvisor(raw: Record<string, unknown>): Advisor {
     reliabilityLevel: (raw.reliability_level ?? raw.reliabilityLevel ?? "Medium") as Advisor["reliabilityLevel"],
     specialties: Array.isArray(raw.specialties) ? raw.specialties : [],
     careerPrepDefault: Boolean(raw.careerPrepDefault ?? false),
-    monthlyCapacityUsed: Number(raw.monthlyCapacityUsed ?? 0),
+    // Read the live assignment count kept in sync by the accept/undo routes.
+    // The old `monthlyCapacityUsed` key does not exist on the row, so the
+    // profile always showed 0 — the recommendation cards use `currentAssignments`.
+    monthlyCapacityUsed: Number(raw.currentAssignments ?? raw.monthlyCapacityUsed ?? 0),
     monthlyCapacityTotal: Number(raw.max_meetings_per_month ?? raw.monthlyCapacityTotal ?? 0),
+    phone: String(raw.phone_number ?? raw.phone ?? ""),
+    linkedinUrl: String(raw.linkedin_url ?? raw.linkedinUrl ?? ""),
     lastEvent: String(raw.lastEvent ?? "—"),
     lastCareerPrep: String(raw.lastCareerPrep ?? "—"),
     signUpDate: raw.created_at
@@ -204,11 +220,14 @@ export default function AdvisorProfilePage() {
   const [editError, setEditError] = useState<string | null>(null);
   const [draftAvailability, setDraftAvailability] = useState<string>("");
   const [draftReliability, setDraftReliability] = useState<string>("");
+  const [draftIndustry, setDraftIndustry] = useState<string>("");
 
   function handleStartEdit() {
     if (!advisor) return;
     setDraftAvailability(advisor.availability);
     setDraftReliability(advisor.reliabilityLevel);
+    // Edit/persist the raw industry enum, not the mapped display `field`.
+    setDraftIndustry(advisor.industry);
     setEditError(null);
     setIsEditing(true);
   }
@@ -229,6 +248,7 @@ export default function AdvisorProfilePage() {
         body: JSON.stringify({
           availability_status: draftAvailability,
           reliability_level: draftReliability,
+          industry: draftIndustry,
         }),
       });
 
@@ -246,6 +266,8 @@ export default function AdvisorProfilePage() {
               availability: updated.availability_status ?? draftAvailability,
               reliabilityLevel:
                 (updated.reliability_level ?? draftReliability) as Advisor["reliabilityLevel"],
+              industry: updated.industry ?? draftIndustry,
+              field: updated.industry ?? draftIndustry,
             }
           : current,
       );
@@ -288,9 +310,31 @@ export default function AdvisorProfilePage() {
     fetchAdvisor();
   }, [id]);
 
-  const capacityPercent = advisor
-    ? Math.round((advisor.monthlyCapacityUsed / advisor.monthlyCapacityTotal) * 100)
-    : 0;
+  // Matches are accepted/undone on the applicant page, which mutates the
+  // advisor's assignment count in the DB. Re-fetch when this tab regains focus
+  // so the capacity display stays consistent with the recommendation cards.
+  useEffect(() => {
+    function refetchOnFocus() {
+      if (document.visibilityState !== "visible") return;
+      fetch(`/api/advisors/${id}`)
+        .then((response) => (response.ok ? response.json() : null))
+        .then((data) => data && setAdvisor(mapAdvisor(data)))
+        .catch(() => {});
+    }
+
+    document.addEventListener("visibilitychange", refetchOnFocus);
+    return () => document.removeEventListener("visibilitychange", refetchOnFocus);
+  }, [id]);
+
+  const capacityPercent =
+    advisor && advisor.monthlyCapacityTotal > 0
+      ? Math.min(
+          100,
+          Math.round(
+            (advisor.monthlyCapacityUsed / advisor.monthlyCapacityTotal) * 100,
+          ),
+        )
+      : 0;
 
   return (
     <MainLayout>
@@ -385,10 +429,6 @@ export default function AdvisorProfilePage() {
                       >
                         {advisor.reliabilityLevel}
                       </span>
-
-                      <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                        Career Prep Default: {advisor.careerPrepDefault ? "Yes" : "No"}
-                      </span>
                     </div>
                   ) : (
                     <div className="mt-3 space-y-3">
@@ -418,6 +458,22 @@ export default function AdvisorProfilePage() {
                             className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-zinc-900"
                           >
                             {RELIABILITY_OPTIONS.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label className="text-sm">
+                          <span className="mb-1 block text-xs text-slate-500">Industry</span>
+                          <select
+                            value={draftIndustry}
+                            onChange={(e) => setDraftIndustry(e.target.value)}
+                            disabled={savingEdit}
+                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-zinc-900"
+                          >
+                            {INDUSTRY_OPTIONS.map((option) => (
                               <option key={option} value={option}>
                                 {option}
                               </option>
@@ -490,15 +546,19 @@ export default function AdvisorProfilePage() {
 
               <InfoSection title="Contact">
                 <InfoRow label="Phone Number">
-                  {advisor.phone?.trim() ? advisor.phone : <NotProvided />}
+                  {advisor.phone?.trim() ? (
+                    formatPhone(advisor.phone)
+                  ) : (
+                    <NotProvided />
+                  )}
                 </InfoRow>
                 <InfoRow label="LinkedIn">
                   {advisor.linkedinUrl?.trim() ? (
                     <a
                       href={advisor.linkedinUrl}
                       target="_blank"
-                      rel="noreferrer"
-                      className="text-[#007CA6] underline-offset-2 hover:underline"
+                      rel="noopener noreferrer"
+                      className="break-all text-[#007CA6] hover:underline"
                     >
                       View LinkedIn Profile
                     </a>
@@ -507,6 +567,7 @@ export default function AdvisorProfilePage() {
                   )}
                 </InfoRow>
               </InfoSection>
+
               <InfoSection title="Employment">
                 <InfoRow label="Employer">{advisor.company}</InfoRow>
                 <InfoRow label="Job Title">{advisor.jobTitle}</InfoRow>
