@@ -8,6 +8,8 @@
   field: string;
   company: string;
   location: string;
+  phone?: string;
+  linkedinUrl?: string;
   availability: string;
   serviceTypes: string[];
   uniqueCareerExperiences: string[];

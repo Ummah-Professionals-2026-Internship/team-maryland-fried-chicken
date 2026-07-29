@@ -33,6 +33,8 @@ export type Applicant = {
   careerGoal?: string;
   industryInterest?: string;
   education?: string;
+  referralSource?: string;
+  resumeUrl?: string;
   skills?: string[];
   gender?: string;
   university?: string;

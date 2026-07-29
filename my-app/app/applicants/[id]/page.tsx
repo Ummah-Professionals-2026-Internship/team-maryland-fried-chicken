@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, Clock, RotateCcw, Sparkles } from "lucide-react";
+import { CheckCircle2, Clock, FileText, RotateCcw, Sparkles } from "lucide-react";
+
 import MainLayout from "@/layouts/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { type Applicant } from "@/components/ui/applicant_table";
@@ -70,6 +71,8 @@ function mapApplicant(raw: Record<string, unknown>): Applicant {
     careerGoal: String(raw.desired_future_career ?? raw.careerGoal ?? ""),
     industryInterest: String(raw.industry ?? raw.industryInterest ?? ""),
     education: String(raw.academic_standing ?? raw.education ?? ""),
+    referralSource: raw.source ? String(raw.source) : undefined,
+    resumeUrl: raw.resume_url ? String(raw.resume_url) : undefined,
     skills: Array.isArray(raw.skills) ? raw.skills : [],
     gender: raw.gender ? String(raw.gender) : undefined,
     university: raw.university ? String(raw.university) : undefined,
@@ -78,6 +81,19 @@ function mapApplicant(raw: Record<string, unknown>): Applicant {
     additionalNotes: raw.additional_notes ? String(raw.additional_notes) : undefined,
   };
 }
+
+// Matches the industry CHECK constraint on the applicants table (migrations/init.sql)
+const INDUSTRY_OPTIONS = [
+  "Business",
+  "Education",
+  "Engineering",
+  "Finance",
+  "Healthcare",
+  "Information Technology",
+  "Law",
+  "Social Services",
+  "Other",
+] as const;
 
 export default function ApplicantDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -94,6 +110,49 @@ export default function ApplicantDetailPage() {
   const [acceptingAdvisorId, setAcceptingAdvisorId] = useState<string | null>(null);
   const [acceptError, setAcceptError] = useState<string | null>(null);
   const [isUndoing, setIsUndoing] = useState(false);
+
+  // Industry is editable — advisors report it is frequently mis-filed and use
+  // it mainly as a grouping tool.
+  const [editingIndustry, setEditingIndustry] = useState(false);
+  const [draftIndustry, setDraftIndustry] = useState("");
+  const [savingIndustry, setSavingIndustry] = useState(false);
+  const [industryError, setIndustryError] = useState<string | null>(null);
+
+  async function handleSaveIndustry() {
+    setSavingIndustry(true);
+    setIndustryError(null);
+
+    try {
+      const response = await fetch(`/api/applicants/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ industry: draftIndustry }),
+      });
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(body.error ?? `Server error: ${response.status}`);
+      }
+
+      setApplicant((current) =>
+        current
+          ? {
+              ...current,
+              industryInterest: body.industry ?? draftIndustry,
+              category: body.industry ?? draftIndustry,
+            }
+          : current,
+      );
+      setEditingIndustry(false);
+    } catch (err) {
+      setIndustryError(
+        err instanceof Error ? err.message : "Failed to update industry.",
+      );
+    } finally {
+      setSavingIndustry(false);
+    }
+  }
 
   async function handleAccept(rec: Recommendation, rankPosition: number) {
     setAcceptingAdvisorId(rec.advisorId);
@@ -394,7 +453,7 @@ export default function ApplicantDetailPage() {
                     <div className="flex justify-between text-sm">
                       <span className="text-zinc-500">University</span>
                       <span className="text-zinc-900 font-medium text-right max-w-[60%]">{applicant.university}</span>
-                    </div>
+                    </div> 
                   )}
                   {applicant.major && (
                     <div className="flex justify-between text-sm">
@@ -402,6 +461,13 @@ export default function ApplicantDetailPage() {
                       <span className="text-zinc-900 font-medium text-right max-w-[60%]">{applicant.major}</span>
                     </div>
                   )}
+                  {applicant.education && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-500">Academic Standing</span>
+                      <span className="text-zinc-900 font-medium text-right max-w-[60%]">{applicant.education}</span>
+                    </div>
+                  )}
+                  
                 </div>
               </CardContent>
             </Card>
@@ -410,14 +476,67 @@ export default function ApplicantDetailPage() {
             <Card className="border-zinc-200">
               <CardContent className="p-6">
                 <h2 className="font-semibold text-zinc-900">Career Details</h2>
-
                 <div className="mt-4 space-y-4 text-sm">
                   <Detail label="Career Goal" value={applicant.careerGoal} />
-                  <Detail
-                    label="Industry Interest"
-                    value={applicant.industryInterest}
-                  />
-                  <Detail label="Education" value={applicant.education} />
+
+                  {/* Industry is editable — used mainly as a grouping tool */}
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-zinc-500">Industry Interest</p>
+                      {!editingIndustry && (
+                        <button
+                          onClick={() => {
+                            setDraftIndustry(applicant.industryInterest ?? "");
+                            setIndustryError(null);
+                            setEditingIndustry(true);
+                          }}
+                          className="text-xs font-medium text-[#2F7FA8] hover:underline"
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </div>
+
+                    {editingIndustry ? (
+                      <div className="mt-1 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <select
+                            value={draftIndustry}
+                            onChange={(e) => setDraftIndustry(e.target.value)}
+                            disabled={savingIndustry}
+                            className="rounded-lg border border-slate-300 px-2 py-1 text-sm text-zinc-900"
+                          >
+                            {INDUSTRY_OPTIONS.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={handleSaveIndustry}
+                            disabled={savingIndustry || !draftIndustry}
+                            className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                          >
+                            {savingIndustry ? "Saving..." : "Save"}
+                          </button>
+                          <button
+                            onClick={() => setEditingIndustry(false)}
+                            disabled={savingIndustry}
+                            className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        {industryError && (
+                          <p className="text-xs font-medium text-red-600">{industryError}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-zinc-900">{applicant.industryInterest ?? "—"}</p>
+                    )}
+                  </div>
+
+                  <Detail label="Referral Source" value={applicant.referralSource} />
                 </div>
               </CardContent>
             </Card>
@@ -442,6 +561,27 @@ export default function ApplicantDetailPage() {
                 {applicant.submitted && (
                   <p className="text-xs text-zinc-400">
                     Submitted: {applicant.submitted}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+                        {/* Resume card */}
+            <Card className="border-zinc-200">
+              <CardContent className="p-6">
+                <h2 className="font-semibold text-zinc-900">Resume</h2>
+                {applicant.resumeUrl ? (
+                  <a
+                    href={applicant.resumeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-slate-50"
+                  >
+                    <FileText className="h-4 w-4" />
+                    View / Download Resume
+                  </a>
+                ) : (
+                  <p className="mt-3 text-sm italic text-slate-400">
+                    No resume provided.
                   </p>
                 )}
               </CardContent>
