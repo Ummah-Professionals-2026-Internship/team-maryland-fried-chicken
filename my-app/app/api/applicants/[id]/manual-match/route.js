@@ -45,7 +45,9 @@ export async function GET(request, { params }) {
   const { data: advisor, error: advisorError } =
     await supabase
       .from("advisors")
-      .select("id, first_name, last_name, job_title, company")
+      .select(
+        "id, first_name, last_name, job_title, company, industry, experience_level, reliability_level, currentAssignments, max_meetings_per_month",
+      )
       .eq("id", activeMatch.advisor_id)
       .maybeSingle();
 
@@ -63,6 +65,11 @@ export async function GET(request, { params }) {
       .join(" "),
     jobTitle: advisor?.job_title ?? "",
     company: advisor?.company ?? "",
+    industry: advisor?.industry ?? "",
+    experienceLevel: advisor?.experience_level ?? "",
+    reliabilityLevel: advisor?.reliability_level ?? "",
+    currentMonthlyAssignments: Number(advisor?.currentAssignments ?? 0),
+    maxMonthlyAssignments: Number(advisor?.max_meetings_per_month ?? 0),
   });
 }
 
@@ -288,6 +295,8 @@ export async function POST(request, { params }) {
         industry: advisor.industry ?? "",
         experienceLevel: advisor.experience_level ?? "",
         reliabilityLevel: advisor.reliability_level ?? "",
+        currentMonthlyAssignments: nextCurrentAssignments,
+        maxMonthlyAssignments: maximumAssignments,
       },
     },
     { status: 201 },
