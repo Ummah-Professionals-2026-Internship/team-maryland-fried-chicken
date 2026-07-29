@@ -3,11 +3,22 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, Clock, RotateCcw, Sparkles, Users } from "lucide-react";
+import { CheckCircle2, ClipboardList, Clock, RotateCcw, Sparkles, Users } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { type Applicant } from "@/components/ui/applicant_table";
 import ManualMatchModal from "@/components/ManualMatchModal";
+import {
+  ApplicantCaseManagement,
+  MeetingActivity,
+} from "@/components/applicants/ApplicantCaseManagement";
 
 type ManualMatchInfo = {
   advisorId: string;
@@ -104,6 +115,9 @@ export default function ApplicantDetailPage() {
   const [isUndoing, setIsUndoing] = useState(false);
   const [manualMatchOpen, setManualMatchOpen] = useState(false);
   const [manualMatch, setManualMatch] = useState<ManualMatchInfo | null>(null);
+  const [caseManagementOpen, setCaseManagementOpen] = useState(false);
+  const [additionalSessionRequested, setAdditionalSessionRequested] =
+    useState(false);
 
   function handleManualMatched(result: {
     advisorId: string;
@@ -119,9 +133,20 @@ export default function ApplicantDetailPage() {
       company: result.company,
     });
     setAcceptedAdvisorId(result.advisorId);
+    setRecommendations((current) =>
+      current.map((item) =>
+        item.recommendationStatus === "Accepted"
+          ? {
+              ...item,
+              recommendationStatus: "Rejected",
+            }
+          : item,
+      ),
+    );
     setApplicant((current) =>
       current ? { ...current, status: "Matched" } : current,
     );
+    setAdditionalSessionRequested(false);
     setAcceptError(null);
   }
 
@@ -153,22 +178,34 @@ export default function ApplicantDetailPage() {
       }
 
       setAcceptedAdvisorId(rec.advisorId);
+      setManualMatch(null);
       setRecommendations((current) =>
-        current.map((item) =>
-          item.advisorId === rec.advisorId
-            ? {
-                ...item,
-                recommendationStatus: "Accepted",
-                currentMonthlyAssignments: Number(
-                  body.currentAssignments ?? item.currentMonthlyAssignments + 1,
-                ),
-              }
-            : item,
-        ),
+        current.map((item) => {
+          if (item.advisorId === rec.advisorId) {
+            return {
+              ...item,
+              recommendationStatus: "Accepted",
+              currentMonthlyAssignments: Number(
+                body.currentAssignments ??
+                  item.currentMonthlyAssignments + 1,
+              ),
+            };
+          }
+
+          if (item.recommendationStatus === "Accepted") {
+            return {
+              ...item,
+              recommendationStatus: "Rejected",
+            };
+          }
+
+          return item;
+        }),
       );
       setApplicant((current) =>
         current ? { ...current, status: "Matched" } : current,
       );
+      setAdditionalSessionRequested(false);
     } catch (err) {
       setAcceptError(
         err instanceof Error
@@ -256,6 +293,9 @@ export default function ApplicantDetailPage() {
 
         const data = await response.json();
         setApplicant(mapApplicant(data));
+        setAdditionalSessionRequested(
+          data.follow_up_outcome === "Additional Session Requested",
+        );
 
         const recommendationsResponse = await fetch(
           `/api/applicants/${id}/recommendations?persistedOnly=true`,
@@ -317,10 +357,11 @@ export default function ApplicantDetailPage() {
     setRecLoading(true);
     setRecError(null);
     setAcceptError(null);
-    setAcceptedAdvisorId(null);
 
     try {
-      const response = await fetch(`/api/applicants/${id}/recommendations`);
+      const response = await fetch(
+        `/api/applicants/${id}/recommendations?regenerate=true`,
+      );
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
@@ -336,6 +377,10 @@ export default function ApplicantDetailPage() {
       setHasGenerated(true);
     }
   }
+
+  const matchActionsDisabled =
+    applicant?.status === "Matched" &&
+    !additionalSessionRequested;
 
   return (
     <MainLayout>
@@ -402,15 +447,19 @@ export default function ApplicantDetailPage() {
                     className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
                       applicant.status === "Matched"
                         ? "bg-emerald-50 text-emerald-700"
-                        : "bg-amber-50 text-amber-700"
+                        : applicant.status === "Closed"
+                          ? "bg-zinc-100 text-zinc-700"
+                          : applicant.status === "Recommendations Generated"
+                            ? "bg-sky-50 text-sky-700"
+                            : "bg-amber-50 text-amber-700"
                     }`}
                   >
-                    {applicant.status === "Matched" ? (
+                    {applicant.status === "Matched" || applicant.status === "Closed" ? (
                       <CheckCircle2 className="h-3.5 w-3.5" />
                     ) : (
                       <Clock className="h-3.5 w-3.5" />
                     )}
-                    {applicant.status === "Matched" ? "Matched" : "Awaiting Match"}
+                    {applicant.status}
                   </span>
                 </div>
 
@@ -451,6 +500,53 @@ export default function ApplicantDetailPage() {
                     </div>
                   )}
                 </div>
+
+                <Dialog
+                  open={caseManagementOpen}
+                  onOpenChange={setCaseManagementOpen}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setCaseManagementOpen(true)}
+                    className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#2F7FA8] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#286E92]"
+                  >
+                    <ClipboardList className="h-4 w-4" />
+                    Manage Case
+                  </button>
+
+                  <DialogContent className="max-w-3xl p-0">
+                    <DialogHeader className="sr-only">
+                      <DialogTitle>
+                        Applicant Case Management
+                      </DialogTitle>
+                      <DialogDescription>
+                        Track meetings, follow-ups, outcomes, and
+                        internal notes.
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <ApplicantCaseManagement
+                      applicantId={id}
+                      applicantStatus={
+                        applicant.status ?? "Pending Review"
+                      }
+                      onStatusChange={(status) =>
+                        setApplicant((current) =>
+                          current
+                            ? {
+                                ...current,
+                                status:
+                                  status as Applicant["status"],
+                              }
+                            : current,
+                        )
+                      }
+                      onRematchPermissionChange={
+                        setAdditionalSessionRequested
+                      }
+                    />
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
 
@@ -506,6 +602,10 @@ export default function ApplicantDetailPage() {
                 </CardContent>
               </Card>
             )}
+            <MeetingActivity
+              applicantId={id}
+              refreshKey={acceptedAdvisorId}
+            />
           </div>
 
           {/* RIGHT COLUMN */}
@@ -526,7 +626,7 @@ export default function ApplicantDetailPage() {
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={handleGenerateRecommendations}
-                    disabled={recLoading || applicant.status === "Matched"}
+                    disabled={recLoading || matchActionsDisabled || applicant.status === "Closed"}
                     className="inline-flex items-center gap-2 rounded-lg bg-[#2F7FA8] px-6 py-3 text-base font-medium text-white hover:bg-[#286E92] disabled:opacity-60"
                   >
                     <Sparkles className="h-5 w-5" />
@@ -534,7 +634,7 @@ export default function ApplicantDetailPage() {
                   </button>
                   <button
                     onClick={() => setManualMatchOpen(true)}
-                    disabled={applicant.status === "Matched"}
+                    disabled={matchActionsDisabled || applicant.status === "Closed"}
                     className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-6 py-3 text-base font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
                   >
                     <Users className="h-5 w-5" />
@@ -644,7 +744,9 @@ export default function ApplicantDetailPage() {
                     acceptedAdvisorId === rec.advisorId ||
                     rec.recommendationStatus === "Accepted";
                   const isBlocked =
-                    acceptedAdvisorId !== null && !isAccepted;
+                    acceptedAdvisorId !== null &&
+                    !isAccepted &&
+                    !additionalSessionRequested;
 
                   return (
                     <Card

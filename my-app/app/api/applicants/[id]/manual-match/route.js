@@ -1,65 +1,72 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import {
+  archiveActiveMatchForReplacement,
+  MatchReplacementError,
+  restoreArchivedMatch,
+} from "@/lib/matchReplacement";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // GET /api/applicants/:id/manual-match
-// Returns the applicant's active match if it has no associated
-// recommendation (i.e. it was created manually), so a page refresh can
-// still show the matched advisor. Returns null otherwise.
 export async function GET(request, { params }) {
   const { id: applicantId } = await params;
 
   if (!UUID_REGEX.test(applicantId)) {
-    return NextResponse.json({ error: "Invalid applicant ID." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid applicant ID." },
+      { status: 400 },
+    );
   }
 
   const supabase = await createClient();
 
-  const { data: activeMatch, error: matchError } = await supabase
-    .from("matches")
-    .select("id, advisor_id, recommendation_id")
-    .eq("applicant_id", applicantId)
-    .eq("match_status", "Active")
-    .is("recommendation_id", null)
-    .maybeSingle();
+  const { data: activeMatch, error: matchError } =
+    await supabase
+      .from("matches")
+      .select("id, advisor_id, recommendation_id")
+      .eq("applicant_id", applicantId)
+      .eq("match_status", "Active")
+      .is("recommendation_id", null)
+      .maybeSingle();
 
   if (matchError) {
-    return NextResponse.json({ error: matchError.message }, { status: 500 });
+    return NextResponse.json(
+      { error: matchError.message },
+      { status: 500 },
+    );
   }
 
   if (!activeMatch) {
     return NextResponse.json(null);
   }
 
-  const { data: advisor, error: advisorError } = await supabase
-    .from("advisors")
-    .select("id, first_name, last_name, job_title, company")
-    .eq("id", activeMatch.advisor_id)
-    .maybeSingle();
+  const { data: advisor, error: advisorError } =
+    await supabase
+      .from("advisors")
+      .select("id, first_name, last_name, job_title, company")
+      .eq("id", activeMatch.advisor_id)
+      .maybeSingle();
 
   if (advisorError) {
-    return NextResponse.json({ error: advisorError.message }, { status: 500 });
+    return NextResponse.json(
+      { error: advisorError.message },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({
     advisorId: activeMatch.advisor_id,
-    advisorName: [advisor?.first_name, advisor?.last_name].filter(Boolean).join(" "),
+    advisorName: [advisor?.first_name, advisor?.last_name]
+      .filter(Boolean)
+      .join(" "),
     jobTitle: advisor?.job_title ?? "",
     company: advisor?.company ?? "",
   });
 }
 
 // POST /api/applicants/:id/manual-match
-// Creates a match for a volunteer-selected advisor, without requiring a
-// pre-existing recommendation row. Follows the same business rules as
-// /api/applicants/:id/recommendations/accept (one active match per
-// applicant, bump advisor currentAssignments, mark applicant Matched),
-// minus the recommendation-status bookkeeping since there may be no
-// associated recommendation. The existing Undo Match endpoint already
-// works for these matches, since it only requires an Active row in
-// `matches` and treats a null recommendation_id as a no-op.
 export async function POST(request, { params }) {
   const { id: applicantId } = await params;
 
@@ -99,64 +106,96 @@ export async function POST(request, { params }) {
 
   const supabase = await createClient();
 
-  const { data: applicant, error: applicantError } = await supabase
-    .from("applicants")
-    .select("id, status")
-    .eq("id", applicantId)
-    .maybeSingle();
+  const { data: applicant, error: applicantError } =
+    await supabase
+      .from("applicants")
+      .select("id, status, follow_up_outcome")
+      .eq("id", applicantId)
+      .maybeSingle();
 
   if (applicantError) {
-    return NextResponse.json({ error: applicantError.message }, { status: 500 });
+    return NextResponse.json(
+      { error: applicantError.message },
+      { status: 500 },
+    );
   }
 
   if (!applicant) {
-    return NextResponse.json({ error: "Applicant not found." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Applicant not found." },
+      { status: 404 },
+    );
   }
 
-  const { data: advisor, error: advisorError } = await supabase
-    .from("advisors")
-    .select(
-      "id, first_name, last_name, job_title, company, industry, experience_level, reliability_level, currentAssignments, max_meetings_per_month",
-    )
-    .eq("id", advisorId)
-    .maybeSingle();
+  if (applicant.status === "Closed") {
+    return NextResponse.json(
+      { error: "A closed applicant case cannot be matched." },
+      { status: 409 },
+    );
+  }
+
+  const { data: advisor, error: advisorError } =
+    await supabase
+      .from("advisors")
+      .select(
+        "id, first_name, last_name, job_title, company, industry, experience_level, reliability_level, currentAssignments, max_meetings_per_month",
+      )
+      .eq("id", advisorId)
+      .maybeSingle();
 
   if (advisorError) {
-    return NextResponse.json({ error: advisorError.message }, { status: 500 });
+    return NextResponse.json(
+      { error: advisorError.message },
+      { status: 500 },
+    );
   }
 
   if (!advisor) {
-    return NextResponse.json({ error: "Advisor not found." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Advisor not found." },
+      { status: 404 },
+    );
   }
 
-  const maxMeetings = Number(advisor.max_meetings_per_month ?? 0);
-  const currentAssignments = Number(advisor.currentAssignments ?? 0);
+  const maximumAssignments = Number(
+    advisor.max_meetings_per_month ?? 0,
+  );
+  const currentAssignments = Number(
+    advisor.currentAssignments ?? 0,
+  );
 
-  if (currentAssignments >= maxMeetings) {
+  if (currentAssignments >= maximumAssignments) {
     return NextResponse.json(
       { error: "This advisor has no remaining monthly capacity." },
       { status: 409 },
     );
   }
 
-  const { data: existingMatch, error: existingMatchError } = await supabase
-    .from("matches")
-    .select("id")
-    .eq("applicant_id", applicantId)
-    .eq("match_status", "Active")
-    .maybeSingle();
+  let archivedMatch = null;
 
-  if (existingMatchError) {
-    return NextResponse.json(
-      { error: existingMatchError.message },
-      { status: 500 },
+  try {
+    archivedMatch = await archiveActiveMatchForReplacement(
+      supabase,
+      {
+        applicant,
+        applicantId,
+        nextAdvisorId: advisorId,
+      },
     );
-  }
-
-  if (existingMatch) {
+  } catch (error) {
     return NextResponse.json(
-      { error: "This applicant already has an active match." },
-      { status: 409 },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to prepare the replacement match.",
+      },
+      {
+        status:
+          error instanceof MatchReplacementError
+            ? error.status
+            : 500,
+      },
     );
   }
 
@@ -172,18 +211,26 @@ export async function POST(request, { params }) {
     .single();
 
   if (matchError) {
-    return NextResponse.json({ error: matchError.message }, { status: 500 });
+    await restoreArchivedMatch(supabase, archivedMatch);
+
+    return NextResponse.json(
+      { error: matchError.message },
+      { status: 500 },
+    );
   }
 
   const nextCurrentAssignments = currentAssignments + 1;
 
   const { error: advisorUpdateError } = await supabase
     .from("advisors")
-    .update({ currentAssignments: nextCurrentAssignments })
+    .update({
+      currentAssignments: nextCurrentAssignments,
+    })
     .eq("id", advisorId);
 
   if (advisorUpdateError) {
     await supabase.from("matches").delete().eq("id", match.id);
+    await restoreArchivedMatch(supabase, archivedMatch);
 
     return NextResponse.json(
       { error: advisorUpdateError.message },
@@ -191,18 +238,27 @@ export async function POST(request, { params }) {
     );
   }
 
+  const applicantUpdates = {
+    status: "Matched",
+  };
+
+  if (archivedMatch) {
+    applicantUpdates.follow_up_outcome = "Awaiting Follow-up";
+  }
+
   const { error: applicantUpdateError } = await supabase
     .from("applicants")
-    .update({ status: "Matched" })
+    .update(applicantUpdates)
     .eq("id", applicantId);
 
   if (applicantUpdateError) {
     await supabase
       .from("advisors")
-      .update({ currentAssignments: Math.max(0, nextCurrentAssignments - 1) })
+      .update({ currentAssignments })
       .eq("id", advisorId);
 
     await supabase.from("matches").delete().eq("id", match.id);
+    await restoreArchivedMatch(supabase, archivedMatch);
 
     return NextResponse.json(
       { error: applicantUpdateError.message },
@@ -212,13 +268,21 @@ export async function POST(request, { params }) {
 
   return NextResponse.json(
     {
-      message: "Advisor manually matched successfully.",
+      message: archivedMatch
+        ? "Replacement advisor manually matched successfully."
+        : "Advisor manually matched successfully.",
       match,
+      archivedMatchId: archivedMatch?.matchId ?? null,
       applicantStatus: "Matched",
+      followUpOutcome: archivedMatch
+        ? "Awaiting Follow-up"
+        : applicant.follow_up_outcome,
       currentAssignments: nextCurrentAssignments,
       advisor: {
         advisorId: advisor.id,
-        advisorName: [advisor.first_name, advisor.last_name].filter(Boolean).join(" "),
+        advisorName: [advisor.first_name, advisor.last_name]
+          .filter(Boolean)
+          .join(" "),
         jobTitle: advisor.job_title ?? "",
         company: advisor.company ?? "",
         industry: advisor.industry ?? "",
