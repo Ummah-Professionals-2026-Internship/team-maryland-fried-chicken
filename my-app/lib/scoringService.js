@@ -3,20 +3,20 @@
 // ---------------------------------------------------------------------------
 
 export const CAREER_POINTS = {
-  "Exact Match": 50,
-  "Closely Related": 38,
-  "Somewhat Related": 20,
+  "Exact Match": 75,
+  "Closely Related": 65,
+  "Somewhat Related": 35,
   "Unrelated": 0,
 };
 
 export const EXPERIENCE_POINTS = {
-  "Senior Professional (10+ Years)": 15,
-  "Graduate/Working Student": 11,
-  "Young Professional (0-3 Years)": 7,
-  "Mid-Career Professional (3-10 Years)": 3,
+  "Senior Professional (10+ Years)": 10,
+  "Mid-Career Professional (3-10 Years)": 8,
+  "Young Professional (0-3 Years)": 6,
+  "Graduate/Working Student": 3,
 };
 
-export const INDUSTRY_MATCH_POINTS = 30;
+export const INDUSTRY_MATCH_POINTS = 10;
 
 export const GENDER_MATCH_POINTS = 5;
 
