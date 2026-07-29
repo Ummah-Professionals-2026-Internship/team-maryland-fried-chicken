@@ -71,6 +71,28 @@ function initials(name: string) {
     .toUpperCase();
 }
 
+function getApplicantServices(
+  raw: Record<string, unknown>,
+): string[] | undefined {
+  const junctionRows = raw.applicant_services as
+    | Array<{ service_types?: { name?: string } | null }>
+    | null
+    | undefined;
+
+  const services = (junctionRows ?? [])
+    .map((row) => row.service_types?.name)
+    .filter((name): name is string => Boolean(name));
+
+  if (services.length > 0) {
+    return services;
+  }
+
+  const legacyService = (
+    raw.service_types as { name?: string } | null
+  )?.name;
+
+  return legacyService ? [legacyService] : undefined;
+}
 // Maps a raw Supabase applicant row to the Applicant UI type
 function mapApplicant(raw: Record<string, unknown>): Applicant {
   const county = String(raw.location_county ?? raw.county ?? "");
@@ -83,9 +105,7 @@ function mapApplicant(raw: Record<string, unknown>): Applicant {
     category: String(raw.industry ?? raw.category ?? ""),
     desiredCareer: String(raw.desired_future_career ?? raw.desiredCareer ?? ""),
     yearsExp: typeof raw.yearsExp === "number" ? raw.yearsExp : undefined,
-    services: (raw.service_types as { name?: string } | null)?.name
-      ? [(raw.service_types as { name?: string }).name!]
-      : undefined,
+    services: getApplicantServices(raw),
     submitted: raw.submission_date
       ? String(raw.submission_date).split("T")[0]
       : String(raw.submitted ?? ""),
@@ -564,7 +584,7 @@ export default function ApplicantDetailPage() {
                     <div className="flex justify-between text-sm">
                       <span className="text-zinc-500">University</span>
                       <span className="text-zinc-900 font-medium text-right max-w-[60%]">{applicant.university}</span>
-                    </div> 
+                    </div>
                   )}
                   {applicant.major && (
                     <div className="flex justify-between text-sm">
@@ -578,7 +598,7 @@ export default function ApplicantDetailPage() {
                       <span className="text-zinc-900 font-medium text-right max-w-[60%]">{applicant.education}</span>
                     </div>
                   )}
-                  
+
                 </div>
 
                 <Dialog

@@ -105,11 +105,13 @@ function mapAdvisor(raw: Record<string, unknown>): Advisor {
     stateProvince: String(raw.location_state ?? raw.stateProvince ?? ""),
     careerHistorySummary: String(raw.career_history_summary ?? raw.careerHistorySummary ?? ""),
     mentorshipExperience: String(raw.mentorship_experience ?? raw.mentorshipExperience ?? ""),
-    uniqueCareerExperiences: Array.isArray(raw.uniqueCareerExperiences)
-      ? raw.uniqueCareerExperiences
-      : raw.unique_career_experiences
-      ? [String(raw.unique_career_experiences)]
-      : [],
+    uniqueCareerExperiences: Array.isArray(raw.unique_career_experiences)
+      ? raw.unique_career_experiences.map(String)
+      : Array.isArray(raw.uniqueCareerExperiences)
+        ? raw.uniqueCareerExperiences.map(String)
+        : raw.unique_career_experiences
+          ? [String(raw.unique_career_experiences)]
+          : [],
   };
 }
 
@@ -142,7 +144,7 @@ export default function AdvisorsPage() {
   }
 
   useEffect(() => {
-    fetchAdvisors();
+    void Promise.resolve().then(fetchAdvisors);
   }, []);
 
   const filteredAdvisors = useMemo(() => {
