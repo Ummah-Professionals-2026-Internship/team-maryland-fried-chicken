@@ -12,7 +12,7 @@ export async function getAllApplicants() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("applicants")
-    .select(SERVICE_EMBED);
+    .select("*, service_types:service_types!applicants_service_id_fkey(name)");
   return { data, error };
 }
 
@@ -21,7 +21,7 @@ export async function getApplicantById(id) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("applicants")
-    .select(SERVICE_EMBED)
+    .select("*, service_types:service_types!applicants_service_id_fkey(name)")
     .eq("id", id)
     .single();
   return { data, error };

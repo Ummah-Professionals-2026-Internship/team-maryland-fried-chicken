@@ -17,9 +17,9 @@ import { rankAdvisors } from "./rankingService.js";
 function buildExplanation(scoreBreakdown, advisor) {
   const lines = [];
 
-  if (scoreBreakdown.careerScore === 50) lines.push("Exact Career Match");
-  else if (scoreBreakdown.careerScore === 38) lines.push("Closely Related Career");
-  else if (scoreBreakdown.careerScore === 20) lines.push("Somewhat Related Career");
+  if (scoreBreakdown.careerScore === 75) lines.push("Exact Career Match");
+  else if (scoreBreakdown.careerScore === 65) lines.push("Closely Related Career");
+  else if (scoreBreakdown.careerScore === 35) lines.push("Somewhat Related Career");
   // careerScore === 0 → add nothing
 
   if (scoreBreakdown.industryScore > 0) lines.push("Same Industry");
@@ -42,16 +42,23 @@ function buildExplanation(scoreBreakdown, advisor) {
  * PIPELINE:
  *   1. Fetch applicant via applicantService
  *   2. Fetch all advisors via advisorService (with joined service/expertise data)
- *   3. Filter eligible advisors via eligibilityService (availability, reliability, capacity, service match)
- *   4–6. For each eligible advisor SEQUENTIALLY: call Gemini career similarity (rate-limited
- *        internally by careerSimilarityService), score via scoringService, assemble scored entry.
- *        Sequential rather than Promise.all because careerSimilarityService manages pacing
- *        internally — firing one at a time lets the rate limiter work predictably.
- *   7. Rank via rankingService.rankAdvisors (with tie-breaking)
- *   8. Reshape each entry into the final output shape
+ *   3. Filter eligible advisors via eligibilityService (availability, reliability, capacity)
+ *   4. Fire all Gemini career similarity calls IN PARALLEL via Promise.all
+ *      — safe at OpenRouter's 30 RPM limit; rate limiter in careerSimilarityService
+ *        queues any overflow automatically. This is the primary performance optimization:
+ *        parallel calls cut generation time from ~60s (sequential) to ~3-5s.
+ *   5. Score each advisor via scoringService (pure JS, instant)
+ *   6. Rank via rankingService.rankAdvisors (with tie-breaking)
+ *   7. Reshape each entry into the final output shape
+ *
+ * PERFORMANCE NOTE:
+ *   The previous implementation used a sequential for...of loop to respect a
+ *   5 RPM Gemini free-tier limit. That limit no longer applies — the team
+ *   switched to OpenRouter (30 RPM). Running calls in parallel reduces
+ *   generation time from the sum of all API latencies to the max of any one call.
  *
  * @param {string} applicantId - UUID of the applicant row in the applicants table
- * @param {{ limit?: number }} [options] - options.limit caps the number of results (default 3)
+ * @param {{ limit?: number }} [options] - options.limit caps the number of results (default 5)
  *
  * @returns {Promise<Array<{
  *   advisorId: string,
@@ -70,9 +77,9 @@ function buildExplanation(scoreBreakdown, advisor) {
  *   for convenience — consumers building API responses or UIs won't need a second lookup.
  */
 export async function generateRecommendations(applicantId, options = {}) {
-  const limit = options.limit ?? 3;
+  const limit = options.limit ?? 5;
 
-  // Clear the Gemini cache so each run starts fresh
+  // Clear the similarity cache so each run starts fresh
   clearSimilarityCache();
 
   // Step 1: fetch the applicant
@@ -109,14 +116,28 @@ export async function generateRecommendations(applicantId, options = {}) {
     return [];
   }
 
-  // Steps 4–6: call Gemini, score, and assemble each entry SEQUENTIALLY.
-  // careerSimilarityService handles rate-limit pacing internally (5 RPM free tier),
-  // so sequential calls are simpler and more predictable than coordinating parallel ones.
-  const scoredEntries = [];
+  // Step 4: fire Gemini career similarity calls in concurrent batches.
+  // Batch size matches the rate limiter's window (30 RPM on OpenRouter free tier).
+  // Batching avoids firing more simultaneous requests than the rate limit allows
+  // in a single window, which would cause the overflow calls to wait a full 60s.
+  // With ≤30 eligible advisors the entire pool runs in one batch (~2-5s).
+  // With >30 advisors a second batch starts after the first completes.
+  const BATCH_SIZE = 30;
+  const similarityResults = [];
 
-  for (const advisor of eligible) {
-    const careerSimilarity = await getCareerSimilarity(applicant, advisor);
+  console.log(`[recommendationEngine] Firing similarity calls in batches of ${BATCH_SIZE} (${eligible.length} total)...`);
 
+  for (let i = 0; i < eligible.length; i += BATCH_SIZE) {
+    const batch = eligible.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map((advisor) => getCareerSimilarity(applicant, advisor))
+    );
+    similarityResults.push(...batchResults);
+  }
+
+  // Step 5: score each advisor (pure JS — instant)
+  const scoredEntries = eligible.map((advisor, i) => {
+    const careerSimilarity = similarityResults[i];
     const remainingCapacity = advisor._remaining; // set by eligibilityService — not recomputed
     const maxMeetingsPerMonth = advisor.max_meetings_per_month ?? 0;
 
@@ -128,19 +149,19 @@ export async function generateRecommendations(applicantId, options = {}) {
       maxMeetingsPerMonth
     );
 
-    scoredEntries.push({
+    return {
       advisor,
       careerSimilarity,
       scoreBreakdown,
       remainingCapacity,
       maxMeetingsPerMonth,
-    });
-  }
+    };
+  });
 
-  // Step 7: rank
+  // Step 6: rank
   const ranked = rankAdvisors(scoredEntries, { limit });
 
-  // Step 8: reshape into final output shape
+  // Step 7: reshape into final output shape
   return ranked.map(({ advisor, careerSimilarity, scoreBreakdown }) => ({
     advisorId: advisor.id,
     advisorName: `${advisor.first_name ?? ""} ${advisor.last_name ?? ""}`.trim(),

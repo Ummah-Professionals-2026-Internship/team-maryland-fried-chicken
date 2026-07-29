@@ -9,18 +9,64 @@ import {
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-async function restoreRecommendation(
-  supabase,
-  recommendationId,
-  recommendationStatus,
-) {
-  await supabase
-    .from("recommendations")
-    .update({ recommendation_status: recommendationStatus })
-    .eq("id", recommendationId);
+// GET /api/applicants/:id/manual-match
+export async function GET(request, { params }) {
+  const { id: applicantId } = await params;
+
+  if (!UUID_REGEX.test(applicantId)) {
+    return NextResponse.json(
+      { error: "Invalid applicant ID." },
+      { status: 400 },
+    );
+  }
+
+  const supabase = await createClient();
+
+  const { data: activeMatch, error: matchError } =
+    await supabase
+      .from("matches")
+      .select("id, advisor_id, recommendation_id")
+      .eq("applicant_id", applicantId)
+      .eq("match_status", "Active")
+      .is("recommendation_id", null)
+      .maybeSingle();
+
+  if (matchError) {
+    return NextResponse.json(
+      { error: matchError.message },
+      { status: 500 },
+    );
+  }
+
+  if (!activeMatch) {
+    return NextResponse.json(null);
+  }
+
+  const { data: advisor, error: advisorError } =
+    await supabase
+      .from("advisors")
+      .select("id, first_name, last_name, job_title, company")
+      .eq("id", activeMatch.advisor_id)
+      .maybeSingle();
+
+  if (advisorError) {
+    return NextResponse.json(
+      { error: advisorError.message },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({
+    advisorId: activeMatch.advisor_id,
+    advisorName: [advisor?.first_name, advisor?.last_name]
+      .filter(Boolean)
+      .join(" "),
+    jobTitle: advisor?.job_title ?? "",
+    company: advisor?.company ?? "",
+  });
 }
 
-// POST /api/applicants/:id/recommendations/accept
+// POST /api/applicants/:id/manual-match
 export async function POST(request, { params }) {
   const { id: applicantId } = await params;
 
@@ -49,12 +95,7 @@ export async function POST(request, { params }) {
     );
   }
 
-  const {
-    advisorId,
-    matchScore = null,
-    rankPosition = null,
-    explanation = [],
-  } = body;
+  const { advisorId } = body;
 
   if (!advisorId || !UUID_REGEX.test(advisorId)) {
     return NextResponse.json(
@@ -65,11 +106,12 @@ export async function POST(request, { params }) {
 
   const supabase = await createClient();
 
-  const { data: applicant, error: applicantError } = await supabase
-    .from("applicants")
-    .select("id, status, follow_up_outcome")
-    .eq("id", applicantId)
-    .maybeSingle();
+  const { data: applicant, error: applicantError } =
+    await supabase
+      .from("applicants")
+      .select("id, status, follow_up_outcome")
+      .eq("id", applicantId)
+      .maybeSingle();
 
   if (applicantError) {
     return NextResponse.json(
@@ -92,11 +134,14 @@ export async function POST(request, { params }) {
     );
   }
 
-  const { data: advisor, error: advisorError } = await supabase
-    .from("advisors")
-    .select("id, currentAssignments, max_meetings_per_month")
-    .eq("id", advisorId)
-    .maybeSingle();
+  const { data: advisor, error: advisorError } =
+    await supabase
+      .from("advisors")
+      .select(
+        "id, first_name, last_name, job_title, company, industry, experience_level, reliability_level, currentAssignments, max_meetings_per_month",
+      )
+      .eq("id", advisorId)
+      .maybeSingle();
 
   if (advisorError) {
     return NextResponse.json(
@@ -112,11 +157,11 @@ export async function POST(request, { params }) {
     );
   }
 
-  const currentAssignments = Number(
-    advisor.currentAssignments ?? 0,
-  );
   const maximumAssignments = Number(
     advisor.max_meetings_per_month ?? 0,
+  );
+  const currentAssignments = Number(
+    advisor.currentAssignments ?? 0,
   );
 
   if (currentAssignments >= maximumAssignments) {
@@ -125,36 +170,6 @@ export async function POST(request, { params }) {
       { status: 409 },
     );
   }
-
-  const {
-    data: recommendation,
-    error: recommendationLookupError,
-  } = await supabase
-    .from("recommendations")
-    .select("*")
-    .eq("applicant_id", applicantId)
-    .eq("advisor_id", advisorId)
-    .maybeSingle();
-
-  if (recommendationLookupError) {
-    return NextResponse.json(
-      { error: recommendationLookupError.message },
-      { status: 500 },
-    );
-  }
-
-  if (!recommendation) {
-    return NextResponse.json(
-      {
-        error:
-          "Generate recommendations before accepting an advisor.",
-      },
-      { status: 409 },
-    );
-  }
-
-  const previousRecommendationStatus =
-    recommendation.recommendation_status ?? "Pending";
 
   let archivedMatch = null;
 
@@ -184,63 +199,18 @@ export async function POST(request, { params }) {
     );
   }
 
-  const matchingExplanation = Array.isArray(explanation)
-    ? explanation.join("\n")
-    : String(explanation ?? "");
-
-  const recommendationUpdates = {
-    recommendation_status: "Accepted",
-  };
-
-  if (matchScore !== null) {
-    recommendationUpdates.match_score = matchScore;
-  }
-
-  if (rankPosition !== null) {
-    recommendationUpdates.rank_position = rankPosition;
-  }
-
-  if (matchingExplanation) {
-    recommendationUpdates.matching_explanation =
-      matchingExplanation;
-  }
-
-  const {
-    data: acceptedRecommendation,
-    error: recommendationUpdateError,
-  } = await supabase
-    .from("recommendations")
-    .update(recommendationUpdates)
-    .eq("id", recommendation.id)
-    .select()
-    .single();
-
-  if (recommendationUpdateError) {
-    await restoreArchivedMatch(supabase, archivedMatch);
-
-    return NextResponse.json(
-      { error: recommendationUpdateError.message },
-      { status: 500 },
-    );
-  }
-
   const { data: match, error: matchError } = await supabase
     .from("matches")
     .insert({
       applicant_id: applicantId,
       advisor_id: advisorId,
-      recommendation_id: recommendation.id,
+      recommendation_id: null,
       match_status: "Active",
     })
     .select()
     .single();
 
   if (matchError) {
-    await restoreRecommendation(
-      supabase,
-      recommendation.id,
-      previousRecommendationStatus,
-    );
     await restoreArchivedMatch(supabase, archivedMatch);
 
     return NextResponse.json(
@@ -260,11 +230,6 @@ export async function POST(request, { params }) {
 
   if (advisorUpdateError) {
     await supabase.from("matches").delete().eq("id", match.id);
-    await restoreRecommendation(
-      supabase,
-      recommendation.id,
-      previousRecommendationStatus,
-    );
     await restoreArchivedMatch(supabase, archivedMatch);
 
     return NextResponse.json(
@@ -293,13 +258,6 @@ export async function POST(request, { params }) {
       .eq("id", advisorId);
 
     await supabase.from("matches").delete().eq("id", match.id);
-
-    await restoreRecommendation(
-      supabase,
-      recommendation.id,
-      previousRecommendationStatus,
-    );
-
     await restoreArchivedMatch(supabase, archivedMatch);
 
     return NextResponse.json(
@@ -311,9 +269,8 @@ export async function POST(request, { params }) {
   return NextResponse.json(
     {
       message: archivedMatch
-        ? "Replacement recommendation accepted successfully."
-        : "Recommendation accepted successfully.",
-      recommendation: acceptedRecommendation,
+        ? "Replacement advisor manually matched successfully."
+        : "Advisor manually matched successfully.",
       match,
       archivedMatchId: archivedMatch?.matchId ?? null,
       applicantStatus: "Matched",
@@ -321,6 +278,17 @@ export async function POST(request, { params }) {
         ? "Awaiting Follow-up"
         : applicant.follow_up_outcome,
       currentAssignments: nextCurrentAssignments,
+      advisor: {
+        advisorId: advisor.id,
+        advisorName: [advisor.first_name, advisor.last_name]
+          .filter(Boolean)
+          .join(" "),
+        jobTitle: advisor.job_title ?? "",
+        company: advisor.company ?? "",
+        industry: advisor.industry ?? "",
+        experienceLevel: advisor.experience_level ?? "",
+        reliabilityLevel: advisor.reliability_level ?? "",
+      },
     },
     { status: 201 },
   );

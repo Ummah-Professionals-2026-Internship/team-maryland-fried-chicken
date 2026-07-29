@@ -3,11 +3,30 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, Clock, FileText, RotateCcw, Sparkles } from "lucide-react";
 
+import { CheckCircle2, ClipboardList, FileText, Clock, RotateCcw, Sparkles, Users } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { type Applicant } from "@/components/ui/applicant_table";
+import ManualMatchModal from "@/components/ManualMatchModal";
+import {
+  ApplicantCaseManagement,
+  MeetingActivity,
+} from "@/components/applicants/ApplicantCaseManagement";
+
+type ManualMatchInfo = {
+  advisorId: string;
+  advisorName: string;
+  jobTitle: string;
+  company: string;
+};
 
 // Shape returned by GET /api/applicants/:id/recommendations
 type Recommendation = {
@@ -110,6 +129,42 @@ export default function ApplicantDetailPage() {
   const [acceptingAdvisorId, setAcceptingAdvisorId] = useState<string | null>(null);
   const [acceptError, setAcceptError] = useState<string | null>(null);
   const [isUndoing, setIsUndoing] = useState(false);
+  const [manualMatchOpen, setManualMatchOpen] = useState(false);
+  const [manualMatch, setManualMatch] = useState<ManualMatchInfo | null>(null);
+  const [caseManagementOpen, setCaseManagementOpen] = useState(false);
+  const [additionalSessionRequested, setAdditionalSessionRequested] =
+    useState(false);
+
+  function handleManualMatched(result: {
+    advisorId: string;
+    advisorName: string;
+    jobTitle: string;
+    company: string;
+    currentAssignments: number;
+  }) {
+    setManualMatch({
+      advisorId: result.advisorId,
+      advisorName: result.advisorName,
+      jobTitle: result.jobTitle,
+      company: result.company,
+    });
+    setAcceptedAdvisorId(result.advisorId);
+    setRecommendations((current) =>
+      current.map((item) =>
+        item.recommendationStatus === "Accepted"
+          ? {
+              ...item,
+              recommendationStatus: "Rejected",
+            }
+          : item,
+      ),
+    );
+    setApplicant((current) =>
+      current ? { ...current, status: "Matched" } : current,
+    );
+    setAdditionalSessionRequested(false);
+    setAcceptError(null);
+  }
 
   // Industry is editable — advisors report it is frequently mis-filed and use
   // it mainly as a grouping tool.
@@ -182,22 +237,34 @@ export default function ApplicantDetailPage() {
       }
 
       setAcceptedAdvisorId(rec.advisorId);
+      setManualMatch(null);
       setRecommendations((current) =>
-        current.map((item) =>
-          item.advisorId === rec.advisorId
-            ? {
-                ...item,
-                recommendationStatus: "Accepted",
-                currentMonthlyAssignments: Number(
-                  body.currentAssignments ?? item.currentMonthlyAssignments + 1,
-                ),
-              }
-            : item,
-        ),
+        current.map((item) => {
+          if (item.advisorId === rec.advisorId) {
+            return {
+              ...item,
+              recommendationStatus: "Accepted",
+              currentMonthlyAssignments: Number(
+                body.currentAssignments ??
+                  item.currentMonthlyAssignments + 1,
+              ),
+            };
+          }
+
+          if (item.recommendationStatus === "Accepted") {
+            return {
+              ...item,
+              recommendationStatus: "Rejected",
+            };
+          }
+
+          return item;
+        }),
       );
       setApplicant((current) =>
         current ? { ...current, status: "Matched" } : current,
       );
+      setAdditionalSessionRequested(false);
     } catch (err) {
       setAcceptError(
         err instanceof Error
@@ -228,6 +295,7 @@ export default function ApplicantDetailPage() {
       }
 
       setAcceptedAdvisorId(null);
+      setManualMatch(null);
       setApplicant((current) =>
         current
           ? {
@@ -284,6 +352,9 @@ export default function ApplicantDetailPage() {
 
         const data = await response.json();
         setApplicant(mapApplicant(data));
+        setAdditionalSessionRequested(
+          data.follow_up_outcome === "Additional Session Requested",
+        );
 
         const recommendationsResponse = await fetch(
           `/api/applicants/${id}/recommendations?persistedOnly=true`,
@@ -304,6 +375,23 @@ export default function ApplicantDetailPage() {
           setAcceptedAdvisorId(
             acceptedRecommendation?.advisorId ?? null,
           );
+
+          // A "Matched" applicant with no accepted recommendation was
+          // matched manually — fetch that match's advisor for display.
+          if (!acceptedRecommendation && data.status === "Matched") {
+            const manualMatchResponse = await fetch(
+              `/api/applicants/${id}/manual-match`,
+            );
+
+            if (manualMatchResponse.ok) {
+              const manualMatchData = await manualMatchResponse.json();
+
+              if (manualMatchData) {
+                setManualMatch(manualMatchData);
+                setAcceptedAdvisorId(manualMatchData.advisorId);
+              }
+            }
+          }
         } else {
           const recommendationsBody = await recommendationsResponse
             .json()
@@ -328,10 +416,11 @@ export default function ApplicantDetailPage() {
     setRecLoading(true);
     setRecError(null);
     setAcceptError(null);
-    setAcceptedAdvisorId(null);
 
     try {
-      const response = await fetch(`/api/applicants/${id}/recommendations`);
+      const response = await fetch(
+        `/api/applicants/${id}/recommendations?regenerate=true`,
+      );
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
@@ -347,6 +436,10 @@ export default function ApplicantDetailPage() {
       setHasGenerated(true);
     }
   }
+
+  const matchActionsDisabled =
+    applicant?.status === "Matched" &&
+    !additionalSessionRequested;
 
   return (
     <MainLayout>
@@ -413,15 +506,19 @@ export default function ApplicantDetailPage() {
                     className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
                       applicant.status === "Matched"
                         ? "bg-emerald-50 text-emerald-700"
-                        : "bg-amber-50 text-amber-700"
+                        : applicant.status === "Closed"
+                          ? "bg-zinc-100 text-zinc-700"
+                          : applicant.status === "Recommendations Generated"
+                            ? "bg-sky-50 text-sky-700"
+                            : "bg-amber-50 text-amber-700"
                     }`}
                   >
-                    {applicant.status === "Matched" ? (
+                    {applicant.status === "Matched" || applicant.status === "Closed" ? (
                       <CheckCircle2 className="h-3.5 w-3.5" />
                     ) : (
                       <Clock className="h-3.5 w-3.5" />
                     )}
-                    {applicant.status === "Matched" ? "Matched" : "Awaiting Match"}
+                    {applicant.status}
                   </span>
                 </div>
 
@@ -469,6 +566,53 @@ export default function ApplicantDetailPage() {
                   )}
                   
                 </div>
+
+                <Dialog
+                  open={caseManagementOpen}
+                  onOpenChange={setCaseManagementOpen}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setCaseManagementOpen(true)}
+                    className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#2F7FA8] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#286E92]"
+                  >
+                    <ClipboardList className="h-4 w-4" />
+                    Manage Case
+                  </button>
+
+                  <DialogContent className="max-w-3xl p-0">
+                    <DialogHeader className="sr-only">
+                      <DialogTitle>
+                        Applicant Case Management
+                      </DialogTitle>
+                      <DialogDescription>
+                        Track meetings, follow-ups, outcomes, and
+                        internal notes.
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <ApplicantCaseManagement
+                      applicantId={id}
+                      applicantStatus={
+                        applicant.status ?? "Pending Review"
+                      }
+                      onStatusChange={(status) =>
+                        setApplicant((current) =>
+                          current
+                            ? {
+                                ...current,
+                                status:
+                                  status as Applicant["status"],
+                              }
+                            : current,
+                        )
+                      }
+                      onRematchPermissionChange={
+                        setAdditionalSessionRequested
+                      }
+                    />
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
 
@@ -598,14 +742,18 @@ export default function ApplicantDetailPage() {
                 </CardContent>
               </Card>
             )}
+            <MeetingActivity
+              applicantId={id}
+              refreshKey={acceptedAdvisorId}
+            />
           </div>
 
           {/* RIGHT COLUMN */}
           <div className="space-y-6 lg:col-span-2">
             {/* Recommendations header card */}
             <Card className="border-zinc-200">
-              <CardContent className="flex items-center justify-between p-6">
-                <div>
+              <CardContent className="flex flex-col gap-4 p-6">
+                <div className="text-left">
                   <h2 className="text-lg font-bold text-zinc-900">
                     Advisor Recommendations
                   </h2>
@@ -615,16 +763,72 @@ export default function ApplicantDetailPage() {
                       : "No recommendations generated yet."}
                   </p>
                 </div>
-                <button
-                  onClick={handleGenerateRecommendations}
-                  disabled={recLoading || applicant.status === "Matched"}
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#2F7FA8] px-6 py-3 text-base font-medium text-white hover:bg-[#286E92] disabled:opacity-60"
-                >
-                  <Sparkles className="h-5 w-5" />
-                  {recLoading ? "Generating..." : "Generate Recommendations"}
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={handleGenerateRecommendations}
+                    disabled={recLoading || matchActionsDisabled || applicant.status === "Closed"}
+                    className="inline-flex items-center gap-2 rounded-lg bg-[#2F7FA8] px-6 py-3 text-base font-medium text-white hover:bg-[#286E92] disabled:opacity-60"
+                  >
+                    <Sparkles className="h-5 w-5" />
+                    {recLoading ? "Generating..." : "Generate Recommendations"}
+                  </button>
+                  <button
+                    onClick={() => setManualMatchOpen(true)}
+                    disabled={matchActionsDisabled || applicant.status === "Closed"}
+                    className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-6 py-3 text-base font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+                  >
+                    <Users className="h-5 w-5" />
+                    Manual Match
+                  </button>
+                </div>
               </CardContent>
             </Card>
+
+            <ManualMatchModal
+              applicantId={id}
+              applicantName={applicant.name}
+              open={manualMatchOpen}
+              onOpenChange={setManualMatchOpen}
+              onMatched={handleManualMatched}
+            />
+
+            {manualMatch && (
+              <Card className="border-zinc-200">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                        Manually Matched
+                      </p>
+                      <Link
+                        href={`/advisors/${manualMatch.advisorId}`}
+                        className="font-semibold text-zinc-900 hover:underline"
+                      >
+                        {manualMatch.advisorName}
+                      </Link>
+                      <p className="text-sm text-zinc-500">
+                        {manualMatch.jobTitle} · {manualMatch.company}
+                      </p>
+                    </div>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Matched
+                    </span>
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-2 border-t border-zinc-100 pt-4">
+                    <button
+                      onClick={handleUndo}
+                      disabled={isUndoing}
+                      className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                      {isUndoing ? "Undoing..." : "Undo Match"}
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {recLoading && (
               <Card className="border-zinc-200">
@@ -650,7 +854,7 @@ export default function ApplicantDetailPage() {
               </Card>
             )}
 
-            {!recLoading && !recError && !hasGenerated && (
+            {!recLoading && !recError && !hasGenerated && !manualMatch && (
               <Card className="border-zinc-200">
                 <CardContent className="flex flex-col items-center justify-center p-12 text-center">
                   <Sparkles className="h-8 w-8 text-zinc-700" />
@@ -680,7 +884,9 @@ export default function ApplicantDetailPage() {
                     acceptedAdvisorId === rec.advisorId ||
                     rec.recommendationStatus === "Accepted";
                   const isBlocked =
-                    acceptedAdvisorId !== null && !isAccepted;
+                    acceptedAdvisorId !== null &&
+                    !isAccepted &&
+                    !additionalSessionRequested;
 
                   return (
                     <Card
