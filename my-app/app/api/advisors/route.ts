@@ -21,8 +21,30 @@ function getStringArray(value: unknown) {
     .filter(Boolean);
 }
 
+function normalizePhoneNumber(countryCode: string, value: string) {
+  if (!/^\+\d{1,4}$/.test(countryCode)) return "";
+  if (!/^\d+$/.test(value)) return "";
+
+  return `${countryCode}${value}`;
+}
+
+function isValidLinkedInUrl(value: string) {
+  if (!value) return true;
+
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase();
+
+    return (
+      url.protocol === "https:" &&
+      (hostname === "linkedin.com" || hostname.endsWith(".linkedin.com"))
+    );
+  } catch {
+    return false;
+  }
+}
 function normalizeMentorshipExperience(value: string) {
-  return value.replace("1-3 years", "1â€“3 years").replace("3-5 years", "3â€“5 years");
+  return value.replace(/\u2013/g, "-");
 }
 
 async function upsertLookupValues(
@@ -74,6 +96,39 @@ export async function POST(request: Request) {
   const firstName = getString(body.firstName);
   const lastName = getString(body.lastName);
   const email = getString(body.email).toLowerCase();
+
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return NextResponse.json(
+      { error: "Email must be a valid email address." },
+      { status: 400 },
+    );
+  }
+
+  const countryCode = getString(body.countryCode);
+  const phoneInput = getString(body.phone);
+  const linkedinUrl = getString(body.linkedinUrl);
+
+  if (phoneInput && !/^\d+$/.test(phoneInput)) {
+    return NextResponse.json(
+      {
+        error:
+          "Only enter digits. Do not include spaces, dashes, parentheses, or other characters.",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (!isValidLinkedInUrl(linkedinUrl)) {
+    return NextResponse.json(
+      {
+        error:
+          "LinkedIn URL must be a valid https://linkedin.com profile URL.",
+      },
+      { status: 400 },
+    );
+  }
+
+  const phone = normalizePhoneNumber(countryCode, phoneInput);
   const gender = getString(body.gender);
 
   if (!["Brother", "Sister"].includes(gender)) {
@@ -94,9 +149,9 @@ export async function POST(request: Request) {
   const industry = getString(body.industry);
   const experienceLevel = getString(body.experienceLevel);
   const expertise = getStringArray(body.expertise);
-  const services = getStringArray(body.services);
+  const services = [...new Set(getStringArray(body.services))];
   const careerHistorySummary = getString(body.careerHistorySummary);
-  const uniqueCareerExperiences = getStringArray(body.uniqueCareerExperiences);
+  const uniqueCareerExperiences = [...new Set(getStringArray(body.uniqueCareerExperiences))];
   const mentorshipExperience = normalizeMentorshipExperience(
     getString(body.mentorshipExperience),
   );
@@ -107,6 +162,7 @@ export async function POST(request: Request) {
     ["First Name", firstName],
     ["Last Name", lastName],
     ["Email", email],
+    ["Phone Number", phone],
     ["Gender", gender],
     ["County", locationCounty],
     ["State", locationState],
@@ -142,6 +198,8 @@ export async function POST(request: Request) {
         first_name: firstName,
         last_name: lastName,
         email,
+        phone_number: phone,
+        linkedin_url: linkedinUrl || null,
         gender,
 
         // Updated location column mapping
@@ -156,7 +214,7 @@ export async function POST(request: Request) {
         experience_level: experienceLevel,
         reliability_level: "Medium",
         career_history_summary: careerHistorySummary || null,
-        unique_career_experiences: uniqueCareerExperiences[0] || null,
+        unique_career_experiences: uniqueCareerExperiences.length > 0 ? uniqueCareerExperiences : null,
         mentorship_experience: mentorshipExperience || null,
         max_meetings_per_month: maxMeetingsPerMonth,
         additional_notes: additionalNotes || null,

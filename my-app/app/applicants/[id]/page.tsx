@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, ClipboardList, Clock, RotateCcw, Sparkles, Users } from "lucide-react";
+
+import { CheckCircle2, ClipboardList, FileText, Clock, RotateCcw, Sparkles, Users } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -25,6 +26,11 @@ type ManualMatchInfo = {
   advisorName: string;
   jobTitle: string;
   company: string;
+  industry: string;
+  experienceLevel: string;
+  reliabilityLevel: string;
+  currentMonthlyAssignments: number;
+  maxMonthlyAssignments: number;
 };
 
 // Shape returned by GET /api/applicants/:id/recommendations
@@ -65,6 +71,28 @@ function initials(name: string) {
     .toUpperCase();
 }
 
+function getApplicantServices(
+  raw: Record<string, unknown>,
+): string[] | undefined {
+  const junctionRows = raw.applicant_services as
+    | Array<{ service_types?: { name?: string } | null }>
+    | null
+    | undefined;
+
+  const services = (junctionRows ?? [])
+    .map((row) => row.service_types?.name)
+    .filter((name): name is string => Boolean(name));
+
+  if (services.length > 0) {
+    return services;
+  }
+
+  const legacyService = (
+    raw.service_types as { name?: string } | null
+  )?.name;
+
+  return legacyService ? [legacyService] : undefined;
+}
 // Maps a raw Supabase applicant row to the Applicant UI type
 function mapApplicant(raw: Record<string, unknown>): Applicant {
   const county = String(raw.location_county ?? raw.county ?? "");
@@ -77,9 +105,7 @@ function mapApplicant(raw: Record<string, unknown>): Applicant {
     category: String(raw.industry ?? raw.category ?? ""),
     desiredCareer: String(raw.desired_future_career ?? raw.desiredCareer ?? ""),
     yearsExp: typeof raw.yearsExp === "number" ? raw.yearsExp : undefined,
-    services: (raw.service_types as { name?: string } | null)?.name
-      ? [(raw.service_types as { name?: string }).name!]
-      : undefined,
+    services: getApplicantServices(raw),
     submitted: raw.submission_date
       ? String(raw.submission_date).split("T")[0]
       : String(raw.submitted ?? ""),
@@ -89,6 +115,8 @@ function mapApplicant(raw: Record<string, unknown>): Applicant {
     careerGoal: String(raw.desired_future_career ?? raw.careerGoal ?? ""),
     industryInterest: String(raw.industry ?? raw.industryInterest ?? ""),
     education: String(raw.academic_standing ?? raw.education ?? ""),
+    referralSource: raw.source ? String(raw.source) : undefined,
+    resumeUrl: raw.resume_url ? String(raw.resume_url) : undefined,
     skills: Array.isArray(raw.skills) ? raw.skills : [],
     gender: raw.gender ? String(raw.gender) : undefined,
     university: raw.university ? String(raw.university) : undefined,
@@ -97,6 +125,19 @@ function mapApplicant(raw: Record<string, unknown>): Applicant {
     additionalNotes: raw.additional_notes ? String(raw.additional_notes) : undefined,
   };
 }
+
+// Matches the industry CHECK constraint on the applicants table (migrations/init.sql)
+const INDUSTRY_OPTIONS = [
+  "Business",
+  "Education",
+  "Engineering",
+  "Finance",
+  "Healthcare",
+  "Information Technology",
+  "Law",
+  "Social Services",
+  "Other",
+] as const;
 
 export default function ApplicantDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -124,13 +165,22 @@ export default function ApplicantDetailPage() {
     advisorName: string;
     jobTitle: string;
     company: string;
+    industry: string;
+    experienceLevel: string;
+    reliabilityLevel: string;
     currentAssignments: number;
+    maxMonthlyAssignments: number;
   }) {
     setManualMatch({
       advisorId: result.advisorId,
       advisorName: result.advisorName,
       jobTitle: result.jobTitle,
       company: result.company,
+      industry: result.industry,
+      experienceLevel: result.experienceLevel,
+      reliabilityLevel: result.reliabilityLevel,
+      currentMonthlyAssignments: result.currentAssignments,
+      maxMonthlyAssignments: result.maxMonthlyAssignments,
     });
     setAcceptedAdvisorId(result.advisorId);
     setRecommendations((current) =>
@@ -148,6 +198,49 @@ export default function ApplicantDetailPage() {
     );
     setAdditionalSessionRequested(false);
     setAcceptError(null);
+  }
+
+  // Industry is editable — advisors report it is frequently mis-filed and use
+  // it mainly as a grouping tool.
+  const [editingIndustry, setEditingIndustry] = useState(false);
+  const [draftIndustry, setDraftIndustry] = useState("");
+  const [savingIndustry, setSavingIndustry] = useState(false);
+  const [industryError, setIndustryError] = useState<string | null>(null);
+
+  async function handleSaveIndustry() {
+    setSavingIndustry(true);
+    setIndustryError(null);
+
+    try {
+      const response = await fetch(`/api/applicants/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ industry: draftIndustry }),
+      });
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(body.error ?? `Server error: ${response.status}`);
+      }
+
+      setApplicant((current) =>
+        current
+          ? {
+              ...current,
+              industryInterest: body.industry ?? draftIndustry,
+              category: body.industry ?? draftIndustry,
+            }
+          : current,
+      );
+      setEditingIndustry(false);
+    } catch (err) {
+      setIndustryError(
+        err instanceof Error ? err.message : "Failed to update industry.",
+      );
+    } finally {
+      setSavingIndustry(false);
+    }
   }
 
   async function handleAccept(rec: Recommendation, rankPosition: number) {
@@ -499,6 +592,13 @@ export default function ApplicantDetailPage() {
                       <span className="text-zinc-900 font-medium text-right max-w-[60%]">{applicant.major}</span>
                     </div>
                   )}
+                  {applicant.education && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-500">Academic Standing</span>
+                      <span className="text-zinc-900 font-medium text-right max-w-[60%]">{applicant.education}</span>
+                    </div>
+                  )}
+
                 </div>
 
                 <Dialog
@@ -554,14 +654,67 @@ export default function ApplicantDetailPage() {
             <Card className="border-zinc-200">
               <CardContent className="p-6">
                 <h2 className="font-semibold text-zinc-900">Career Details</h2>
-
                 <div className="mt-4 space-y-4 text-sm">
                   <Detail label="Career Goal" value={applicant.careerGoal} />
-                  <Detail
-                    label="Industry Interest"
-                    value={applicant.industryInterest}
-                  />
-                  <Detail label="Education" value={applicant.education} />
+
+                  {/* Industry is editable — used mainly as a grouping tool */}
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-zinc-500">Industry Interest</p>
+                      {!editingIndustry && (
+                        <button
+                          onClick={() => {
+                            setDraftIndustry(applicant.industryInterest ?? "");
+                            setIndustryError(null);
+                            setEditingIndustry(true);
+                          }}
+                          className="text-xs font-medium text-[#2F7FA8] hover:underline"
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </div>
+
+                    {editingIndustry ? (
+                      <div className="mt-1 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <select
+                            value={draftIndustry}
+                            onChange={(e) => setDraftIndustry(e.target.value)}
+                            disabled={savingIndustry}
+                            className="rounded-lg border border-slate-300 px-2 py-1 text-sm text-zinc-900"
+                          >
+                            {INDUSTRY_OPTIONS.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={handleSaveIndustry}
+                            disabled={savingIndustry || !draftIndustry}
+                            className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                          >
+                            {savingIndustry ? "Saving..." : "Save"}
+                          </button>
+                          <button
+                            onClick={() => setEditingIndustry(false)}
+                            disabled={savingIndustry}
+                            className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        {industryError && (
+                          <p className="text-xs font-medium text-red-600">{industryError}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-zinc-900">{applicant.industryInterest ?? "—"}</p>
+                    )}
+                  </div>
+
+                  <Detail label="Referral Source" value={applicant.referralSource} />
                 </div>
               </CardContent>
             </Card>
@@ -586,6 +739,27 @@ export default function ApplicantDetailPage() {
                 {applicant.submitted && (
                   <p className="text-xs text-zinc-400">
                     Submitted: {applicant.submitted}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+                        {/* Resume card */}
+            <Card className="border-zinc-200">
+              <CardContent className="p-6">
+                <h2 className="font-semibold text-zinc-900">Resume</h2>
+                {applicant.resumeUrl ? (
+                  <a
+                    href={applicant.resumeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-slate-50"
+                  >
+                    <FileText className="h-4 w-4" />
+                    View / Download Resume
+                  </a>
+                ) : (
+                  <p className="mt-3 text-sm italic text-slate-400">
+                    No resume provided.
                   </p>
                 )}
               </CardContent>
@@ -657,9 +831,6 @@ export default function ApplicantDetailPage() {
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                        Manually Matched
-                      </p>
                       <Link
                         href={`/advisors/${manualMatch.advisorId}`}
                         className="font-semibold text-zinc-900 hover:underline"
@@ -670,13 +841,26 @@ export default function ApplicantDetailPage() {
                         {manualMatch.jobTitle} · {manualMatch.company}
                       </p>
                     </div>
+
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-sky-50 px-3 py-1 text-sm font-semibold text-sky-700">
+                      <Users className="h-3.5 w-3.5" />
+                      Manual Match
+                    </span>
+                  </div>
+
+                  <AdvisorDetailsGrid
+                    industry={manualMatch.industry}
+                    experienceLevel={manualMatch.experienceLevel}
+                    reliabilityLevel={manualMatch.reliabilityLevel}
+                    currentMonthlyAssignments={manualMatch.currentMonthlyAssignments}
+                    maxMonthlyAssignments={manualMatch.maxMonthlyAssignments}
+                  />
+
+                  <div className="mt-4 flex items-center gap-2 border-t border-zinc-100 pt-4">
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       Matched
                     </span>
-                  </div>
-
-                  <div className="mt-4 flex items-center gap-2 border-t border-zinc-100 pt-4">
                     <button
                       onClick={handleUndo}
                       disabled={isUndoing}
@@ -739,7 +923,16 @@ export default function ApplicantDetailPage() {
 
             {!recLoading && !recError && recommendations.length > 0 && (
               <div className="space-y-4">
-                {recommendations.map((rec, index) => {
+                {recommendations
+                  .filter((rec) =>
+                    // Show all cards when no match yet, or when rematch is allowed.
+                    // Once a match is accepted, hide all other cards.
+                    acceptedAdvisorId === null ||
+                    additionalSessionRequested ||
+                    rec.advisorId === acceptedAdvisorId ||
+                    rec.recommendationStatus === "Accepted"
+                  )
+                  .map((rec, index) => {
                   const isAccepted =
                     acceptedAdvisorId === rec.advisorId ||
                     rec.recommendationStatus === "Accepted";
@@ -772,24 +965,13 @@ export default function ApplicantDetailPage() {
                           </span>
                         </div>
 
-                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-                          <Detail label="Industry" value={rec.industry} />
-                          <Detail label="Experience Level" value={rec.experienceLevel} />
-                          <div>
-                            <p className="text-zinc-500">Reliability</p>
-                            <span
-                              className={`mt-0.5 inline-block rounded px-2 py-0.5 text-xs font-medium ${getReliabilityStyles(
-                                rec.reliabilityLevel,
-                              )}`}
-                            >
-                              {rec.reliabilityLevel}
-                            </span>
-                          </div>
-                          <Detail
-                            label="Monthly Assignments"
-                            value={`${rec.currentMonthlyAssignments} / ${rec.maxMonthlyAssignments}`}
-                          />
-                        </div>
+                        <AdvisorDetailsGrid
+                          industry={rec.industry}
+                          experienceLevel={rec.experienceLevel}
+                          reliabilityLevel={rec.reliabilityLevel}
+                          currentMonthlyAssignments={rec.currentMonthlyAssignments}
+                          maxMonthlyAssignments={rec.maxMonthlyAssignments}
+                        />
 
                         {rec.explanation?.length > 0 && (
                           <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-zinc-600">
@@ -855,6 +1037,43 @@ function Detail({ label, value }: { label: string; value?: string }) {
     <div>
       <p className="text-zinc-500">{label}</p>
       <p className="text-zinc-900">{value ?? "—"}</p>
+    </div>
+  );
+}
+
+// Shared advisor attribute grid — used by both automatic recommendation cards
+// and the manual match card so they stay visually and structurally identical.
+function AdvisorDetailsGrid({
+  industry,
+  experienceLevel,
+  reliabilityLevel,
+  currentMonthlyAssignments,
+  maxMonthlyAssignments,
+}: {
+  industry: string;
+  experienceLevel: string;
+  reliabilityLevel: string;
+  currentMonthlyAssignments: number;
+  maxMonthlyAssignments: number;
+}) {
+  return (
+    <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+      <Detail label="Industry" value={industry} />
+      <Detail label="Experience Level" value={experienceLevel} />
+      <div>
+        <p className="text-zinc-500">Reliability</p>
+        <span
+          className={`mt-0.5 inline-block rounded px-2 py-0.5 text-xs font-medium ${getReliabilityStyles(
+            reliabilityLevel,
+          )}`}
+        >
+          {reliabilityLevel}
+        </span>
+      </div>
+      <Detail
+        label="Monthly Assignments"
+        value={`${currentMonthlyAssignments} / ${maxMonthlyAssignments}`}
+      />
     </div>
   );
 }

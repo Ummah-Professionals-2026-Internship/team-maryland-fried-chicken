@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { UserPlus, ArrowLeft } from "lucide-react";
 
 // --- FORM LOGIC COMPONENT ---
-function AddNewUserForm() { 
+function AddNewUserForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -178,7 +178,7 @@ function FormSkeletonFallback() {
 }
 
 // --- MAIN WRAPPER PAGE ---
-export default function AddNewUserPage() { 
+export default function AddNewUserPage() {
   return (
     <MainLayout>
       {/* ✅ Now using the beautiful component-matched fallback layout */}

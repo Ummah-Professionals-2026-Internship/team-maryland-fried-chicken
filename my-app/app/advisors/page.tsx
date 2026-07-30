@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import MainLayout from "@/layouts/MainLayout";
 import { type Advisor } from "@/data/advisors";
-
+import { compareIndustries } from "@/lib/industries";
 
 function getReliabilityStyles(level: string) {
   if (level === "High") {
@@ -51,20 +51,10 @@ function mapAdvisor(raw: Record<string, unknown>): Advisor {
     .toUpperCase();
 
   // Supabase industry values differ from UI field labels — map them across
-  const industryMap: Record<string, string> = {
-    "Information Technology": "Technology",
-    "Business": "Marketing",
-    "Finance": "Finance",
-    "Healthcare": "Healthcare",
-    "Law": "Legal",
-    "Education": "Education",
-    "Engineering": "Engineering",
-    "Social Services": "Social Services",
-    "Other": "Other",
-  };
-
+    // Use the raw DB industry directly so the directory groups by the same
+  // canonical values as the form and the applicant submissions page.
   const rawIndustry = String(raw.industry ?? raw.field ?? "");
-  const field = industryMap[rawIndustry] ?? rawIndustry;
+  const field = rawIndustry;
 
   const county = String(raw.location_county ?? "");
   const state = String(raw.location_state ?? "");
@@ -105,11 +95,13 @@ function mapAdvisor(raw: Record<string, unknown>): Advisor {
     stateProvince: String(raw.location_state ?? raw.stateProvince ?? ""),
     careerHistorySummary: String(raw.career_history_summary ?? raw.careerHistorySummary ?? ""),
     mentorshipExperience: String(raw.mentorship_experience ?? raw.mentorshipExperience ?? ""),
-    uniqueCareerExperiences: Array.isArray(raw.uniqueCareerExperiences)
-      ? raw.uniqueCareerExperiences
-      : raw.unique_career_experiences
-      ? [String(raw.unique_career_experiences)]
-      : [],
+    uniqueCareerExperiences: Array.isArray(raw.unique_career_experiences)
+      ? raw.unique_career_experiences.map(String)
+      : Array.isArray(raw.uniqueCareerExperiences)
+        ? raw.uniqueCareerExperiences.map(String)
+        : raw.unique_career_experiences
+          ? [String(raw.unique_career_experiences)]
+          : [],
   };
 }
 
@@ -142,7 +134,7 @@ export default function AdvisorsPage() {
   }
 
   useEffect(() => {
-    fetchAdvisors();
+    void Promise.resolve().then(fetchAdvisors);
   }, []);
 
   const filteredAdvisors = useMemo(() => {
@@ -178,7 +170,7 @@ export default function AdvisorsPage() {
         order.push(a.field);
       }
     }
-    return order.sort();
+    return order.sort(compareIndustries);
   }, [advisors]);
 
   const groupedAdvisors = fieldOrder
