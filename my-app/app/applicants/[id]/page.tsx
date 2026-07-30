@@ -639,7 +639,16 @@ export default function ApplicantDetailPage() {
 
             {!recLoading && !recError && recommendations.length > 0 && (
               <div className="space-y-4">
-                {recommendations.map((rec, index) => {
+                {recommendations
+                  .filter((rec) =>
+                    // Show all cards when no match yet, or when rematch is allowed.
+                    // Once a match is accepted, hide all other cards.
+                    acceptedAdvisorId === null ||
+                    additionalSessionRequested ||
+                    rec.advisorId === acceptedAdvisorId ||
+                    rec.recommendationStatus === "Accepted"
+                  )
+                  .map((rec, index) => {
                   const isAccepted =
                     acceptedAdvisorId === rec.advisorId ||
                     rec.recommendationStatus === "Accepted";
