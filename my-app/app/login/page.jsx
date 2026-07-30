@@ -40,10 +40,10 @@ export default function LoginPage() {
     <MainLayout>
       <div className="space-y-6 max-w-sm mx-auto mt-12">
         <div>
-          <h1 className="text-foreground" style={{ fontSize: "1.375rem", fontWeight: 700 }}>
+          <h1 className="text-zinc-900" style={{ fontSize: "1.375rem", fontWeight: 700 }}>
             Login
           </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
+          <p className="text-slate-600 text-sm mt-0.5">
             Enter your credentials to access dashboard.
           </p>
         </div>
@@ -55,7 +55,7 @@ export default function LoginPage() {
 
               {/* Email Block */}
               <div className="space-y-0.5">
-                <label className="text-muted-foreground text-xs font-medium">Email Address</label>
+                <label className="text-slate-600 text-xs font-medium">Email Address</label>
                 <Input
                   type="email"
                   placeholder="name@example.com"
@@ -68,7 +68,7 @@ export default function LoginPage() {
 
               {/* Password Block */}
               <div className="space-y-0.5 mt-2.5">
-                <label className="text-muted-foreground text-xs font-medium">Password</label>
+                <label className="text-slate-600 text-xs font-medium">Password</label>
                 <Input
                   type="password"
                   placeholder="••••••••"

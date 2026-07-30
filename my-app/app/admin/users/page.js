@@ -90,7 +90,7 @@ export default function ManageUsersPage() {
   if (loading) {
     return (
       <MainLayout>
-        <div className="w-full text-center text-muted-foreground text-sm font-medium py-12">
+        <div className="w-full text-center text-slate-600 text-sm font-medium py-12">
           Verifying security access & reading directory records...
         </div>
       </MainLayout>
@@ -104,10 +104,10 @@ export default function ManageUsersPage() {
         {/* HEADER TRACKING LAYOUT SECTION */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-foreground" style={{ fontSize: "1.375rem", fontWeight: 700 }}>
+            <h1 className="text-zinc-900" style={{ fontSize: "1.375rem", fontWeight: 700 }}>
               User Directory Management
             </h1>
-            <p className="text-muted-foreground text-sm mt-0.5">
+            <p className="text-slate-600 text-sm mt-0.5">
               Review platform roles and override access control permissions.
             </p>
           </div>
@@ -157,12 +157,12 @@ export default function ManageUsersPage() {
                   <TableRow key={worker.userId} onClick={() => router.push(`/admin/users/${worker.userId}`)} className="hover:bg-muted/30 transition-colors">
 
                     {/* User Identity cell */}
-                    <TableCell className="font-medium text-foreground">
+                    <TableCell className="font-medium text-zinc-900">
                       {worker.name || "No Name Set"}
                     </TableCell>
 
                     {/* Email cell */}
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="text-slate-600">
                       {worker.email}
                     </TableCell>
 
@@ -222,7 +222,7 @@ export default function ManageUsersPage() {
             </Table>
 
             {filteredUsers.length === 0 && (
-              <div className="w-full text-center text-muted-foreground text-xs py-8">
+              <div className="w-full text-center text-slate-600 text-xs py-8">
                 No system accounts matched your active filter queries.
               </div>
             )}

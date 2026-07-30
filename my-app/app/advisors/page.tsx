@@ -296,10 +296,10 @@ export default function AdvisorsPage() {
                                   <p className="text-zinc-900 text-sm truncate font-medium">
                                     {advisor.name}
                                   </p>
-                                  <p className="text-slate-600 text-xs">
+                                  <p className="text-zinc-700 text-xs">
                                     {advisor.jobTitle}
                                   </p>
-                                  <p className="text-slate-600 text-xs">
+                                  <p className="text-zinc-700 text-xs">
                                     {advisor.company}
                                   </p>
 

@@ -397,7 +397,7 @@ export default function AdvisorProfilePage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h1 className="text-lg font-bold text-zinc-900">{advisor.name}</h1>
-                      <p className="mt-0.5 text-sm text-slate-500">
+                      <p className="mt-0.5 text-sm text-slate-600">
                         {advisor.jobTitle} · {advisor.company}
                       </p>
                     </div>
