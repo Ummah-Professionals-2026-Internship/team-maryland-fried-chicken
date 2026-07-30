@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import MainLayout from "@/layouts/MainLayout";
 import { type Applicant } from "@/components/ui/applicant_table";
+import { compareIndustries } from "@/lib/industries";
 
 
 // "Yusuf Ibrahim" -> "YI"
@@ -134,7 +135,7 @@ export default function ApplicantsPage() {
         order.push(a.category);
       }
     }
-    return order.sort();
+    return order.sort(compareIndustries);
   }, [applicants]);
 
   const groupedApplicants = fieldOrder
