@@ -139,20 +139,20 @@ function mapAdvisor(raw: Record<string, unknown>): Advisor {
     .join("")
     .toUpperCase();
 
-  const industryMap: Record<string, string> = {
-    "Information Technology": "Technology",
-    "Business": "Marketing",
-    "Finance": "Finance",
-    "Healthcare": "Healthcare",
-    "Law": "Legal",
-    "Education": "Education",
-    "Engineering": "Engineering",
-    "Social Services": "Social Services",
-    "Other": "Other",
-  };
+  // const industryMap: Record<string, string> = {
+  //   "Information Technology": "Technology",
+  //   "Business": "Marketing",
+  //   "Finance": "Finance",
+  //   "Healthcare": "Healthcare",
+  //   "Law": "Legal",
+  //   "Education": "Education",
+  //   "Engineering": "Engineering",
+  //   "Social Services": "Social Services",
+  //   "Other": "Other",
+  // };
 
   const rawIndustry = String(raw.industry ?? raw.field ?? "");
-  const field = industryMap[rawIndustry] ?? rawIndustry;
+  const field = rawIndustry;
 
   const county = String(raw.location_county ?? "");
   const state = String(raw.location_state ?? "");
