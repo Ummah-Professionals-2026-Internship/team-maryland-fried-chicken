@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 
-import { CheckCircle2, ClipboardList, FileText, Clock, RotateCcw, Sparkles, Users } from "lucide-react";
+import { CheckCircle2, ClipboardList, FileText, Clock, RotateCcw, Sparkles, Trash2, Users } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -35,6 +35,7 @@ type ManualMatchInfo = {
 
 // Shape returned by GET /api/applicants/:id/recommendations
 type Recommendation = {
+  recommendationId: string;
   advisorId: string;
   advisorName: string;
   jobTitle: string;
@@ -154,6 +155,10 @@ export default function ApplicantDetailPage() {
   const [acceptingAdvisorId, setAcceptingAdvisorId] = useState<string | null>(null);
   const [acceptError, setAcceptError] = useState<string | null>(null);
   const [isUndoing, setIsUndoing] = useState(false);
+  const [deletingRecommendationId, setDeletingRecommendationId] =
+    useState<string | null>(null);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [manualMatchOpen, setManualMatchOpen] = useState(false);
   const [manualMatch, setManualMatch] = useState<ManualMatchInfo | null>(null);
   const [caseManagementOpen, setCaseManagementOpen] = useState(false);
@@ -365,6 +370,88 @@ export default function ApplicantDetailPage() {
     }
   }
 
+  async function handleDeleteRecommendation(rec: Recommendation) {
+    if (
+      !window.confirm(
+        `Remove ${rec.advisorName} from this applicant's recommendations?`,
+      )
+    ) {
+      return;
+    }
+
+    setDeletingRecommendationId(rec.recommendationId);
+    setDeleteError(null);
+
+    try {
+      const response = await fetch(
+        `/api/applicants/${id}/recommendations?recommendationId=${rec.recommendationId}`,
+        { method: "DELETE" },
+      );
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(body.error ?? `Server error: ${response.status}`);
+      }
+
+      setRecommendations((current) =>
+        current.filter(
+          (item) => item.recommendationId !== rec.recommendationId,
+        ),
+      );
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error
+          ? err.message
+          : "Failed to delete recommendation.",
+      );
+    } finally {
+      setDeletingRecommendationId(null);
+    }
+  }
+
+  async function handleDeleteAllRecommendations() {
+    if (
+      !window.confirm(
+        "Delete all recommendations for this applicant? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+
+    setIsDeletingAll(true);
+    setDeleteError(null);
+
+    try {
+      const response = await fetch(
+        `/api/applicants/${id}/recommendations`,
+        { method: "DELETE" },
+      );
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(body.error ?? `Server error: ${response.status}`);
+      }
+
+      const deletedIds: string[] = body.deletedIds ?? [];
+
+      setRecommendations((current) =>
+        current.filter(
+          (item) => !deletedIds.includes(item.recommendationId),
+        ),
+      );
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error
+          ? err.message
+          : "Failed to delete recommendations.",
+      );
+    } finally {
+      setIsDeletingAll(false);
+    }
+  }
+
   useEffect(() => {
     async function fetchApplicant() {
       setLoading(true);
@@ -474,6 +561,10 @@ export default function ApplicantDetailPage() {
   const matchActionsDisabled =
     applicant?.status === "Matched" &&
     !additionalSessionRequested;
+
+  const deletableRecommendationCount = recommendations.filter(
+    (rec) => rec.recommendationStatus !== "Accepted",
+  ).length;
 
   return (
     <MainLayout>
@@ -814,7 +905,20 @@ export default function ApplicantDetailPage() {
                     <Users className="h-5 w-5" />
                     Manual Match
                   </button>
+                  {deletableRecommendationCount > 0 && (
+                    <button
+                      onClick={handleDeleteAllRecommendations}
+                      disabled={isDeletingAll || deletingRecommendationId !== null}
+                      className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-6 py-3 text-base font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                      {isDeletingAll ? "Deleting..." : "Delete All"}
+                    </button>
+                  )}
                 </div>
+                {deleteError && (
+                  <p className="text-sm font-medium text-red-600">{deleteError}</p>
+                )}
               </CardContent>
             </Card>
 
@@ -1009,6 +1113,20 @@ export default function ApplicantDetailPage() {
                                 {acceptingAdvisorId === rec.advisorId
                                   ? "Accepting..."
                                   : "Accept"}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteRecommendation(rec)}
+                                disabled={
+                                  deletingRecommendationId !== null ||
+                                  isDeletingAll ||
+                                  acceptingAdvisorId !== null
+                                }
+                                className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                {deletingRecommendationId === rec.recommendationId
+                                  ? "Deleting..."
+                                  : "Delete"}
                               </button>
                               {isBlocked && (
                                 <span className="text-xs text-zinc-500">
