@@ -8,6 +8,7 @@
   field: string;
   company: string;
   location: string;
+  email?: string;
   phone?: string;
   linkedinUrl?: string;
   availability: string;
@@ -26,7 +27,8 @@
   areasOfExpertise: string[];
   major: string;
   university: string;
-  county: string;
+  city?: string;
+  county?: string;
   country: string;
   stateProvince: string;
   careerHistorySummary: string;

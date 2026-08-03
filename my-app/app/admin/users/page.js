@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/table"
 
 import { Users, Shield, UserX, UserPlus } from "lucide-react"
+import ConfirmDialog from "@/components/ConfirmDialog"
 
 export default function ManageUsersPage() {
   const router = useRouter()
@@ -35,6 +36,8 @@ export default function ManageUsersPage() {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const [pendingDeleteUserId, setPendingDeleteUserId] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     async function loadWorkspaceData() {
@@ -76,14 +79,25 @@ export default function ManageUsersPage() {
     }
   }
 
-  async function handleDeleteUser(userId) {
-    if (!confirm('Purge this profile account?')) return
+  // Opens the reusable confirmation dialog for the chosen user.
+  function handleDeleteUser(userId) {
+    setPendingDeleteUserId(userId)
+  }
+
+  async function confirmDeleteUser() {
+    if (!pendingDeleteUserId) return
+    setDeleting(true)
 
     try {
-      const res = await fetch(`/api/users/${userId}`, { method: 'DELETE' })
-      if (res.ok) setUsers(users.filter(u => u.userId !== userId))
+      const res = await fetch(`/api/users/${pendingDeleteUserId}`, { method: 'DELETE' })
+      if (res.ok) {
+        setUsers(users.filter(u => u.userId !== pendingDeleteUserId))
+      }
     } catch (err) {
       console.error(err)
+    } finally {
+      setDeleting(false)
+      setPendingDeleteUserId(null)
     }
   }
 
@@ -230,6 +244,19 @@ export default function ManageUsersPage() {
         </Card>
 
       </div>
+
+      <ConfirmDialog
+        open={pendingDeleteUserId !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDeleteUserId(null)
+        }}
+        title="Delete user account"
+        message="This permanently deletes the user account. This action cannot be undone."
+        confirmLabel="Delete User"
+        destructive
+        loading={deleting}
+        onConfirm={confirmDeleteUser}
+      />
     </MainLayout>
   )
 }

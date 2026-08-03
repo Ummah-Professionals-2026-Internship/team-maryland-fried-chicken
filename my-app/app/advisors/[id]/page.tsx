@@ -39,6 +39,20 @@ function getReliabilityStyles(level: string) {
   return "bg-red-50 text-red-700 border-red-200";
 }
 
+// Monthly capacity bar color: 0–49% green, 50–99% yellow, 100% red.
+function getCapacityBarColor(percent: number) {
+  if (percent >= 100) return "bg-red-500";
+  if (percent >= 50) return "bg-amber-500";
+  return "bg-emerald-500";
+}
+
+// Availability badge color: Available green, Unavailable red.
+function getAvailabilityStyles(availability: string) {
+  return availability === "Available"
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    : "border-red-200 bg-red-50 text-red-700";
+}
+
 function InfoSection({
   title,
   children,
@@ -180,6 +194,7 @@ function mapAdvisor(raw: Record<string, unknown>): Advisor {
     // profile always showed 0 — the recommendation cards use `currentAssignments`.
     monthlyCapacityUsed: Number(raw.currentAssignments ?? raw.monthlyCapacityUsed ?? 0),
     monthlyCapacityTotal: Number(raw.max_meetings_per_month ?? raw.monthlyCapacityTotal ?? 0),
+    email: String(raw.email ?? ""),
     phone: String(raw.phone_number ?? raw.phone ?? ""),
     linkedinUrl: String(raw.linkedin_url ?? raw.linkedinUrl ?? ""),
     lastEvent: String(raw.lastEvent ?? "—"),
@@ -400,6 +415,11 @@ export default function AdvisorProfilePage() {
                       <p className="mt-0.5 text-sm text-slate-500">
                         {advisor.jobTitle} · {advisor.company}
                       </p>
+                      {advisor.signUpDate && (
+                        <p className="mt-1 text-xs text-slate-500">
+                          Member since {advisor.signUpDate}
+                        </p>
+                      )}
                     </div>
 
                     {!isEditing && (
@@ -415,7 +435,11 @@ export default function AdvisorProfilePage() {
 
                   {!isEditing ? (
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${getAvailabilityStyles(
+                          advisor.availability
+                        )}`}
+                      >
                         <CheckIcon />
                         {advisor.availability}
                       </span>
@@ -527,7 +551,7 @@ export default function AdvisorProfilePage() {
 
               <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                 <div
-                  className="h-full rounded-full bg-emerald-500 transition-all"
+                  className={`h-full rounded-full transition-all ${getCapacityBarColor(capacityPercent)}`}
                   style={{ width: `${capacityPercent}%` }}
                 />
               </div>
@@ -538,11 +562,19 @@ export default function AdvisorProfilePage() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <InfoSection title="Activity">
-                <InfoRow label="Sign Up Date">{advisor.signUpDate}</InfoRow>
-              </InfoSection>
-
               <InfoSection title="Contact">
+                <InfoRow label="Email">
+                  {advisor.email?.trim() ? (
+                    <a
+                      href={`mailto:${advisor.email}`}
+                      className="break-all text-[#007CA6] hover:underline"
+                    >
+                      {advisor.email}
+                    </a>
+                  ) : (
+                    <NotProvided />
+                  )}
+                </InfoRow>
                 <InfoRow label="Phone Number">
                   {advisor.phone?.trim() ? (
                     formatPhone(advisor.phone)

@@ -78,12 +78,9 @@ export async function archiveActiveMatchForReplacement(
     );
   }
 
-  if (activeMatch.advisor_id === nextAdvisorId) {
-    throw new MatchReplacementError(
-      "Choose a different advisor for the additional session.",
-      409,
-    );
-  }
+  // Reusing the same advisor is allowed: the current match is archived (which
+  // releases one of that advisor's slots) and a fresh match is created below,
+  // so the capacity accounting nets out correctly for additional sessions.
 
   const { data: previousAdvisor, error: previousAdvisorError } =
     await supabase
