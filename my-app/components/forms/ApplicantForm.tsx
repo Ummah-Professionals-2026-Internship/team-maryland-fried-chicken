@@ -4,6 +4,7 @@ import * as React from "react";
 import { Upload, CheckCircle2 } from "lucide-react";
 import {
   ACADEMIC_STANDINGS,
+  COUNTRY_CODES,
   GENDERS,
   INDUSTRIES,
 } from "@/data/formOptions";
@@ -39,6 +40,7 @@ type ApplicantFormState = {
   firstName: string;
   lastName: string;
   email: string;
+  countryCode: string;
   phone: string;
   gender: string;
   county: string;
@@ -58,6 +60,7 @@ const initialState: ApplicantFormState = {
   firstName: "",
   lastName: "",
   email: "",
+  countryCode: "+1",
   phone: "",
   gender: "",
   county: "",
@@ -98,6 +101,13 @@ export default function ApplicantForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (form.phone && !/^\d+$/.test(form.phone)) {
+      setError(
+        "Only enter digits. Do not include spaces, dashes, parentheses, or other characters.",
+      );
+      return;
+    }
 
     const missingFields: string[] = [];
     if (!form.county.trim()) missingFields.push("County");
@@ -223,14 +233,25 @@ export default function ApplicantForm() {
             />
           </Field>
           <Field label="Phone Number" required htmlFor="phone">
-            <TextField
-              id="phone"
-              type="tel"
-              required
-              placeholder="+1 (416) 555-0000"
-              value={form.phone}
-              onChange={(e) => set("phone", e.target.value)}
-            />
+            <div className="flex gap-2">
+              <SelectField
+                aria-label="Country code"
+                required
+                options={COUNTRY_CODES}
+                value={form.countryCode}
+                onChange={(e) => set("countryCode", e.target.value)}
+                className="w-28 shrink-0"
+              />
+              <TextField
+                id="phone"
+                type="tel"
+                inputMode="numeric"
+                required
+                placeholder="2086221234"
+                value={form.phone}
+                onChange={(e) => set("phone", e.target.value)}
+              />
+            </div>
           </Field>
           <Field label="Gender" required htmlFor="gender">
             <SelectField

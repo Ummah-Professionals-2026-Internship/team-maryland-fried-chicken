@@ -297,3 +297,99 @@ export async function GET(request, { params }) {
     );
   }
 }
+
+// DELETE /api/applicants/:id/recommendations
+// DELETE /api/applicants/:id/recommendations?recommendationId=<uuid>
+export async function DELETE(request, { params }) {
+  const { id } = await params;
+
+  if (!UUID_REGEX.test(id)) {
+    return NextResponse.json(
+      { error: "Invalid applicant ID." },
+      { status: 400 },
+    );
+  }
+
+  const searchParams = new URL(request.url).searchParams;
+  const recommendationId = searchParams.get("recommendationId");
+
+  if (recommendationId && !UUID_REGEX.test(recommendationId)) {
+    return NextResponse.json(
+      { error: "Invalid recommendation ID." },
+      { status: 400 },
+    );
+  }
+
+  const supabase = createClient();
+
+  try {
+    if (recommendationId) {
+      const { data: target, error: lookupError } = await supabase
+        .from("recommendations")
+        .select("id, recommendation_status")
+        .eq("id", recommendationId)
+        .eq("applicant_id", id)
+        .maybeSingle();
+
+      if (lookupError) {
+        throw new Error(lookupError.message);
+      }
+
+      if (!target) {
+        return NextResponse.json(
+          { error: "Recommendation not found." },
+          { status: 404 },
+        );
+      }
+
+      if (target.recommendation_status === "Accepted") {
+        return NextResponse.json(
+          {
+            error:
+              "Undo the accepted match before deleting its recommendation.",
+          },
+          { status: 409 },
+        );
+      }
+
+      const { error: deleteError } = await supabase
+        .from("recommendations")
+        .delete()
+        .eq("id", recommendationId);
+
+      if (deleteError) {
+        throw new Error(deleteError.message);
+      }
+
+      return NextResponse.json({ deletedIds: [recommendationId] });
+    }
+
+    // No recommendationId — clear every non-accepted recommendation for
+    // this applicant. Accepted recommendations are tied to an active
+    // match and must be undone first.
+    const { data: deleted, error: deleteAllError } = await supabase
+      .from("recommendations")
+      .delete()
+      .eq("applicant_id", id)
+      .neq("recommendation_status", "Accepted")
+      .select("id");
+
+    if (deleteAllError) {
+      throw new Error(deleteAllError.message);
+    }
+
+    return NextResponse.json({
+      deletedIds: (deleted ?? []).map((row) => row.id),
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to delete recommendation(s).",
+      },
+      { status: 500 },
+    );
+  }
+}

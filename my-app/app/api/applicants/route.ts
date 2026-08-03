@@ -14,14 +14,11 @@ function getString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function formatPhoneNumber(value: string) {
-  const digits = value.replace(/\D/g, "");
-  const normalized =
-    digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+function normalizePhoneNumber(countryCode: string, value: string) {
+  if (!/^\+\d{1,4}$/.test(countryCode)) return "";
+  if (!/^\d+$/.test(value)) return "";
 
-  if (normalized.length !== 10) return "";
-
-  return `+1 (${normalized.slice(0, 3)}) ${normalized.slice(3, 6)}-${normalized.slice(6)}`;
+  return `${countryCode}${value}`;
 }
 
 function getStringArray(value: unknown) {
@@ -62,7 +59,20 @@ export async function POST(request: Request) {
   const firstName = getString(body.firstName);
   const lastName = getString(body.lastName);
   const email = getString(body.email).toLowerCase();
-  const phone = formatPhoneNumber(getString(body.phone));
+  const countryCode = getString(body.countryCode);
+  const phoneInput = getString(body.phone);
+
+  if (phoneInput && !/^\d+$/.test(phoneInput)) {
+    return NextResponse.json(
+      {
+        error:
+          "Only enter digits. Do not include spaces, dashes, parentheses, or other characters.",
+      },
+      { status: 400 },
+    );
+  }
+
+  const phone = normalizePhoneNumber(countryCode, phoneInput);
   const gender = getString(body.gender);
 
   if (!["Brother", "Sister"].includes(gender)) {
@@ -85,7 +95,7 @@ export async function POST(request: Request) {
   const academicStanding = getString(body.academicStanding);
   const desiredFutureCareer = getString(body.desiredFutureCareer);
   const industry = getString(body.industry);
-  const services = getStringArray(body.services);
+  const services = [...new Set(getStringArray(body.services))];
 
   // Optional string fields defaulting to empty strings or "Other"
   const additionalNotes = getString(body.additionalNotes);
@@ -135,31 +145,49 @@ export async function POST(request: Request) {
   try {
     const supabase = createClient();
 
-    const selectedService = services[0];
-
-    // Fetch service type lookup ID
-    const { data: serviceType, error: serviceTypeError } =
-      await supabase
-        .from("service_types")
-        .select("id")
-        .eq("name", selectedService)
-        .maybeSingle();
+    const { data: serviceTypes, error: serviceTypeError } = await supabase
+      .from("service_types")
+      .select("id, name")
+      .in("name", services);
 
     if (serviceTypeError) {
-      console.error("[POST /api/applicants - Service Type Lookup Error]:", serviceTypeError);
+      console.error(
+        "[POST /api/applicants - Service Type Lookup Error]:",
+        serviceTypeError,
+      );
       return NextResponse.json(
         { error: serviceTypeError.message },
         { status: 500 },
       );
     }
 
-    if (!serviceType) {
+    const serviceRows = serviceTypes ?? [];
+    const foundServiceNames = new Set(
+      serviceRows.map((service) => service.name),
+    );
+    const missingServices = services.filter(
+      (service) => !foundServiceNames.has(service),
+    );
+
+    if (missingServices.length > 0) {
       return NextResponse.json(
-        { error: `Service type not found: ${selectedService}` },
+        {
+          error: `Service type(s) not found: ${missingServices.join(", ")}`,
+        },
         { status: 400 },
       );
     }
 
+    const primaryService = serviceRows.find(
+      (service) => service.name === services[0],
+    );
+
+    if (!primaryService) {
+      return NextResponse.json(
+        { error: "Unable to determine the primary service type." },
+        { status: 400 },
+      );
+    }
     // Insert applicant record
     const { data: applicant, error: applicantError } =
       await supabase
@@ -180,7 +208,7 @@ export async function POST(request: Request) {
           academic_standing: academicStanding,
           desired_future_career: desiredFutureCareer,
           industry,
-          service_id: serviceType.id,
+          service_id: primaryService.id,
           additional_notes: additionalNotes,
           source,
         })
@@ -195,6 +223,28 @@ export async function POST(request: Request) {
       );
     }
 
+    const { error: applicantServicesError } = await supabase
+      .from("applicant_services")
+      .insert(
+        serviceRows.map((service) => ({
+          applicant_id: applicant.id,
+          service_id: service.id,
+        })),
+      );
+
+    if (applicantServicesError) {
+      await supabase.from("applicants").delete().eq("id", applicant.id);
+
+      console.error(
+        "[POST /api/applicants - Applicant Services Insert Error]:",
+        applicantServicesError,
+      );
+
+      return NextResponse.json(
+        { error: applicantServicesError.message },
+        { status: 500 },
+      );
+    }
     return NextResponse.json(
       {
         applicantId: applicant.id,
