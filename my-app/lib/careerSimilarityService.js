@@ -89,16 +89,37 @@ export async function getCareerSimilarity(applicant, advisor) {
   // Pace the call — may wait here if the rate limit window is full
   await waitForRateLimit();
 
-  const prompt = `You are a career advisor assistant. Classify the relationship between an applicant's desired future career and an advisor's current job title.
+  const prompt = `You are a career advisor assistant matching students with mentors. Classify the relationship between an applicant's desired future career and an advisor's current job title, so a coordinator can judge how useful this advisor's mentorship would be.
 
 Applicant's desired future career: "${applicant.desired_future_career ?? "Not specified"}"
 Advisor's current job title: "${advisor.job_title ?? "Not specified"}"
 
+Base your classification primarily on:
+- Similarity of the actual occupation (what the person does day-to-day)
+- Transferable career experience (skills, tools, or domain knowledge that carry over)
+- Mentorship relevance (could this advisor give concrete, specific guidance on reaching the applicant's goal?)
+- Professional career progression (is one role a natural stepping stone to, or a senior version of, the other?)
+
+Do NOT classify based on broad industry alone. Two roles in the same industry can require substantially different education, day-to-day work, and skills — that alone does not make them closely related.
+
 Classify the relationship into EXACTLY ONE of these four categories:
-- "Exact Match" — the advisor's job title is the same role or nearly identical to the applicant's goal
-- "Closely Related" — the advisor's role is in the same field and directly relevant
-- "Somewhat Related" — there is indirect relevance or partial overlap
-- "Unrelated" — the advisor's role has no meaningful connection to the applicant's goal
+- "Exact Match" — the same occupation, or close enough that titles are effectively interchangeable (e.g. "Software Engineer" vs "Software Developer").
+- "Closely Related" — a different title but a highly similar profession, or a natural career progression/adjacent specialization within the same occupation (e.g. a Nurse Practitioner mentoring an aspiring Registered Nurse; a Senior Software Engineer mentoring an aspiring Software Engineer). Reserve this for cases where the advisor could give hands-on, specific guidance about the applicant's day-to-day target role.
+- "Somewhat Related" — same broad industry or transferable skills, but meaningfully different occupation, education path, or day-to-day responsibilities (e.g. a Financial Analyst mentoring an aspiring Accountant; a Graphic Designer mentoring an aspiring UX Designer). This is the default when the fields merely overlap.
+- "Unrelated" — no meaningful occupational overlap or transferable relevance (e.g. a Mechanical Engineer mentoring an aspiring Elementary School Teacher).
+
+Be conservative: only choose "Closely Related" or "Exact Match" when the advisor could realistically give specific, actionable guidance toward the applicant's exact target role. When in doubt between two categories, choose the more conservative (less related) one.
+
+Examples:
+- Applicant wants "Registered Nurse", advisor is "Registered Nurse" -> {"classification": "Exact Match", "explanation": "Same occupation."}
+- Applicant wants "Software Engineer", advisor is "Senior Software Engineer" -> {"classification": "Closely Related", "explanation": "Same occupation at a more senior level, a natural progression."}
+- Applicant wants "Corporate Lawyer", advisor is "Paralegal" -> {"classification": "Somewhat Related", "explanation": "Same legal field but a different role with a different education path and day-to-day work."}
+- Applicant wants "Marketing Manager", advisor is "Sales Representative" -> {"classification": "Somewhat Related", "explanation": "Related business functions with transferable skills, but distinct day-to-day responsibilities."}
+- Applicant wants "High School Teacher", advisor is "Corporate Trainer" -> {"classification": "Somewhat Related", "explanation": "Both involve instruction, but different audiences, settings, and credentialing."}
+- Applicant wants "Mechanical Engineer", advisor is "Civil Engineer" -> {"classification": "Somewhat Related", "explanation": "Both are engineering disciplines but require different technical training and work on different problems."}
+- Applicant wants "Graphic Designer", advisor is "Illustrator" -> {"classification": "Closely Related", "explanation": "Closely overlapping creative skill set and typical career path."}
+- Applicant wants "Investment Banker", advisor is "Financial Advisor" -> {"classification": "Somewhat Related", "explanation": "Both are finance roles but differ substantially in day-to-day work and client focus."}
+- Applicant wants "Physical Therapist", advisor is "Software Engineer" -> {"classification": "Unrelated", "explanation": "No meaningful occupational or skill overlap."}
 
 Respond with ONLY a JSON object in this exact format, no other text:
 {"classification": "Closely Related", "explanation": "one brief sentence explaining why"}`;
