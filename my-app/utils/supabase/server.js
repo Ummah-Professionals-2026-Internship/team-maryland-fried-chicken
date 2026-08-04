@@ -35,14 +35,49 @@ export function createClient() {
 } // <-- Properly closes createClient
 
 
-export function createAdminClient() {
+export function createPublicClient() {
+  const supabaseUrl = process.env.SUPABASE_URL
+  const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY
+
+  if (!supabaseUrl || !publishableKey) {
+    throw new Error(
+      'Missing SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY.'
+    )
+  }
+
   return createSupabaseClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SECRET_KEY,
+    supabaseUrl,
+    publishableKey,
     {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
+        detectSessionInUrl: false,
+      },
+    }
+  )
+}
+
+export function createAdminClient() {
+  const supabaseUrl = process.env.SUPABASE_URL
+  const secretKey =
+    process.env.SUPABASE_SECRET_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !secretKey) {
+    throw new Error(
+      'Missing SUPABASE_URL or Supabase server secret key.'
+    )
+  }
+
+  return createSupabaseClient(
+    supabaseUrl,
+    secretKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
       },
     }
   )

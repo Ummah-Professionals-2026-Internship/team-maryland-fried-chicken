@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdvisorById, updateAdvisor } from "@/lib/advisorService";
+import { requireAdminOrStaff } from "@/lib/requireStaffRole";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -129,4 +130,51 @@ export async function PATCH(request, { params }) {
   }
 
   return NextResponse.json(data);
+}
+
+// DELETE /api/advisors/:id
+export async function DELETE(_request, { params }) {
+  const { id } = await params;
+
+  if (!UUID_REGEX.test(id)) {
+    return NextResponse.json(
+      { error: "Invalid advisor ID." },
+      { status: 400 },
+    );
+  }
+
+  const authorization = await requireAdminOrStaff();
+
+  if (authorization.error) {
+    return NextResponse.json(
+      { error: authorization.error },
+      { status: authorization.status },
+    );
+  }
+
+  const { data, error } = await authorization.admin
+    .from("advisors")
+    .delete()
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 },
+    );
+  }
+
+  if (!data) {
+    return NextResponse.json(
+      { error: "Advisor not found." },
+      { status: 404 },
+    );
+  }
+
+  return NextResponse.json({
+    message: "Advisor deleted successfully.",
+    deletedId: data.id,
+  });
 }
