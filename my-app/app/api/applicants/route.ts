@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAllApplicants } from "@/lib/applicantService";
 import {
   createAdminClient,
-  createClient,
+  createPublicClient,
 } from "@/utils/supabase/server";
 
 const ALLOWED_REFERRAL_SOURCES = [
@@ -237,7 +237,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const supabase = createClient();
+    const supabase = createPublicClient();
     const admin = createAdminClient();
 
     const { data: serviceTypes, error: serviceTypeError } = await supabase
