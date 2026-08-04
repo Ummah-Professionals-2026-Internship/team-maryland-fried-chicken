@@ -116,7 +116,7 @@ export default function TopNavigation() {
 
           <div className="leading-none">
             <div className="text-xl font-bold text-[#2F7FA8]">ummah</div>
-            <div className="text-xs tracking-wide text-slate-500">
+            <div className="text-s tracking-wide text-[#2F7FA8]">
               professionals
             </div>
           </div>
