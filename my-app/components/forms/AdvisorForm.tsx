@@ -202,6 +202,17 @@ export default function AdvisorForm() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-10">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">
+          Advisor Registration Form
+        </h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Complete the form below to register as an advisor for the Ummah
+          Professionals mentorship program. Fields marked{" "}
+          <span className="text-red-500">*</span> are required.
+        </p>
+      </div>
+
       {/* 1. Personal Information */}
       <FormSection step={1} title="Personal Information">
         <FieldGrid>

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
 import { CheckCircle2, ClipboardList, FileText, Clock, RotateCcw, Sparkles, Trash2, Users } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
+import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import {
   Dialog,
   DialogContent,
@@ -142,6 +143,7 @@ const INDUSTRY_OPTIONS = [
 
 export default function ApplicantDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [applicant, setApplicant] = useState<Applicant | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -164,6 +166,41 @@ export default function ApplicantDetailPage() {
   const [caseManagementOpen, setCaseManagementOpen] = useState(false);
   const [additionalSessionRequested, setAdditionalSessionRequested] =
     useState(false);
+  const [deleteApplicantOpen, setDeleteApplicantOpen] = useState(false);
+  const [isDeletingApplicant, setIsDeletingApplicant] = useState(false);
+  const [applicantDeleteError, setApplicantDeleteError] =
+    useState<string | null>(null);
+
+  async function handleDeleteApplicant() {
+    setIsDeletingApplicant(true);
+    setApplicantDeleteError(null);
+
+    try {
+      const response = await fetch(`/api/applicants/${id}`, {
+        method: "DELETE",
+      });
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          body.error ?? `Server error: ${response.status}`,
+        );
+      }
+
+      setDeleteApplicantOpen(false);
+      router.push("/applicants");
+      router.refresh();
+    } catch (err) {
+      setApplicantDeleteError(
+        err instanceof Error
+          ? err.message
+          : "Failed to delete applicant.",
+      );
+    } finally {
+      setIsDeletingApplicant(false);
+    }
+  }
 
   function handleManualMatched(result: {
     advisorId: string;
@@ -188,21 +225,14 @@ export default function ApplicantDetailPage() {
       maxMonthlyAssignments: result.maxMonthlyAssignments,
     });
     setAcceptedAdvisorId(result.advisorId);
-    setRecommendations((current) =>
-      current.map((item) =>
-        item.recommendationStatus === "Accepted"
-          ? {
-              ...item,
-              recommendationStatus: "Rejected",
-            }
-          : item,
-      ),
-    );
+    setRecommendations([]);
+    setHasGenerated(false);
     setApplicant((current) =>
       current ? { ...current, status: "Matched" } : current,
     );
     setAdditionalSessionRequested(false);
     setAcceptError(null);
+    setRecError(null);
   }
 
   // Industry is editable — advisors report it is frequently mis-filed and use
@@ -339,7 +369,9 @@ export default function ApplicantDetailPage() {
         current
           ? {
               ...current,
-              status: "Recommendations Generated",
+              status: String(
+                body.applicantStatus ?? "Recommendations Generated",
+              ),
             }
           : current,
       );
@@ -394,11 +426,23 @@ export default function ApplicantDetailPage() {
         throw new Error(body.error ?? `Server error: ${response.status}`);
       }
 
-      setRecommendations((current) =>
-        current.filter(
-          (item) => item.recommendationId !== rec.recommendationId,
-        ),
+      const remainingRecommendations = recommendations.filter(
+        (item) => item.recommendationId !== rec.recommendationId,
       );
+
+      setRecommendations(remainingRecommendations);
+      setHasGenerated(remainingRecommendations.length > 0);
+
+      if (body.applicantStatus) {
+        setApplicant((current) =>
+          current
+            ? {
+                ...current,
+                status: String(body.applicantStatus),
+              }
+            : current,
+        );
+      }
     } catch (err) {
       setDeleteError(
         err instanceof Error
@@ -436,11 +480,23 @@ export default function ApplicantDetailPage() {
 
       const deletedIds: string[] = body.deletedIds ?? [];
 
-      setRecommendations((current) =>
-        current.filter(
-          (item) => !deletedIds.includes(item.recommendationId),
-        ),
+      const remainingRecommendations = recommendations.filter(
+        (item) => !deletedIds.includes(item.recommendationId),
       );
+
+      setRecommendations(remainingRecommendations);
+      setHasGenerated(remainingRecommendations.length > 0);
+
+      if (body.applicantStatus) {
+        setApplicant((current) =>
+          current
+            ? {
+                ...current,
+                status: String(body.applicantStatus),
+              }
+            : current,
+        );
+      }
     } catch (err) {
       setDeleteError(
         err instanceof Error
@@ -738,6 +794,29 @@ export default function ApplicantDetailPage() {
                     />
                   </DialogContent>
                 </Dialog>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setApplicantDeleteError(null);
+                    setDeleteApplicantOpen(true);
+                  }}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Applicant
+                </button>
+
+                <ConfirmationDialog
+                  open={deleteApplicantOpen}
+                  onOpenChange={setDeleteApplicantOpen}
+                  title="Delete applicant?"
+                  description={`This will permanently delete ${applicant.name} and all related recommendations and matches. This action cannot be undone.`}
+                  confirmLabel="Delete Applicant"
+                  isLoading={isDeletingApplicant}
+                  error={applicantDeleteError}
+                  onConfirm={handleDeleteApplicant}
+                />
               </CardContent>
             </Card>
 
@@ -840,7 +919,7 @@ export default function ApplicantDetailPage() {
                 <h2 className="font-semibold text-zinc-900">Resume</h2>
                 {applicant.resumeUrl ? (
                   <a
-                    href={applicant.resumeUrl}
+                    href={`/api/applicants/${id}/resume`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-slate-50"

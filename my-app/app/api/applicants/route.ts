@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getAllApplicants } from "@/lib/applicantService";
-import { createClient } from "@/utils/supabase/server";
+import {
+  createAdminClient,
+  createClient,
+} from "@/utils/supabase/server";
 
 const ALLOWED_REFERRAL_SOURCES = [
   "Word of Mouth",
@@ -30,6 +33,55 @@ function getStringArray(value: unknown) {
     .filter(Boolean);
 }
 
+const MAX_RESUME_BYTES = 5 * 1024 * 1024;
+
+const RESUME_CONTENT_TYPES: Record<string, string> = {
+  pdf: "application/pdf",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+};
+
+function getResumeExtension(fileName: string) {
+  return fileName.split(".").pop()?.toLowerCase() ?? "";
+}
+
+function getSafeResumeFileName(fileName: string) {
+  const extension = getResumeExtension(fileName);
+  const baseName = fileName
+    .slice(0, -(extension.length + 1))
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+
+  return `${baseName || "resume"}.${extension}`;
+}
+
+function validateResume(file: File) {
+  const extension = getResumeExtension(file.name);
+  const expectedContentType = RESUME_CONTENT_TYPES[extension];
+
+  if (!expectedContentType) {
+    return "Resume must be a PDF, DOC, or DOCX file.";
+  }
+
+  if (file.size > MAX_RESUME_BYTES) {
+    return "Resume must be 5 MB or smaller.";
+  }
+
+  if (
+    file.type &&
+    file.type !== expectedContentType &&
+    !(
+      extension === "doc" &&
+      file.type === "application/octet-stream"
+    )
+  ) {
+    return "Resume file type does not match its extension.";
+  }
+
+  return null;
+}
+
 // GET /api/applicants
 export async function GET() {
   const { data, error } = await getAllApplicants();
@@ -45,15 +97,57 @@ export async function GET() {
 // POST /api/applicants
 export async function POST(request: Request) {
   let body: Record<string, unknown>;
+  let resumeFile: File | null = null;
 
   try {
-    body = (await request.json()) as Record<string, unknown>;
+    const contentType = request.headers.get("content-type") ?? "";
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+      body = {};
+
+      for (const [key, value] of formData.entries()) {
+        if (typeof value === "string") {
+          body[key] = value;
+        }
+      }
+
+      body.services = formData
+        .getAll("services")
+        .filter((value): value is string => typeof value === "string");
+
+      const uploadedResume = formData.get("resume");
+
+      if (
+        uploadedResume instanceof File &&
+        uploadedResume.size > 0
+      ) {
+        resumeFile = uploadedResume;
+      }
+    } else {
+      body = (await request.json()) as Record<string, unknown>;
+    }
   } catch (err) {
-    console.error("[POST /api/applicants - JSON Parsing Error]:", err);
+    console.error(
+      "[POST /api/applicants - Request Parsing Error]:",
+      err,
+    );
+
     return NextResponse.json(
-      { error: "Invalid request body. Expected JSON." },
+      { error: "Invalid applicant submission." },
       { status: 400 },
     );
+  }
+
+  if (resumeFile) {
+    const resumeValidationError = validateResume(resumeFile);
+
+    if (resumeValidationError) {
+      return NextResponse.json(
+        { error: resumeValidationError },
+        { status: 400 },
+      );
+    }
   }
 
   const firstName = getString(body.firstName);
@@ -144,6 +238,7 @@ export async function POST(request: Request) {
 
   try {
     const supabase = createClient();
+    const admin = createAdminClient();
 
     const { data: serviceTypes, error: serviceTypeError } = await supabase
       .from("service_types")
@@ -223,7 +318,71 @@ export async function POST(request: Request) {
       );
     }
 
-    const { error: applicantServicesError } = await supabase
+    let uploadedResumePath: string | null = null;
+
+    if (resumeFile) {
+      const safeFileName = getSafeResumeFileName(resumeFile.name);
+      uploadedResumePath =
+        `${applicant.id}/${Date.now()}-${safeFileName}`;
+
+      const extension = getResumeExtension(resumeFile.name);
+      const contentType =
+        resumeFile.type ||
+        RESUME_CONTENT_TYPES[extension] ||
+        "application/octet-stream";
+
+      const { error: uploadError } = await admin.storage
+        .from("resumes")
+        .upload(uploadedResumePath, resumeFile, {
+          contentType,
+          upsert: false,
+        });
+
+      if (uploadError) {
+        await admin
+          .from("applicants")
+          .delete()
+          .eq("id", applicant.id);
+
+        console.error(
+          "[POST /api/applicants - Resume Upload Error]:",
+          uploadError,
+        );
+
+        return NextResponse.json(
+          { error: uploadError.message },
+          { status: 500 },
+        );
+      }
+
+      const { error: resumeUrlError } = await admin
+        .from("applicants")
+        .update({ resume_url: uploadedResumePath })
+        .eq("id", applicant.id);
+
+      if (resumeUrlError) {
+        await admin.storage
+          .from("resumes")
+          .remove([uploadedResumePath]);
+
+        await admin
+          .from("applicants")
+          .delete()
+          .eq("id", applicant.id);
+
+        console.error(
+          "[POST /api/applicants - Resume URL Error]:",
+          resumeUrlError,
+        );
+
+        return NextResponse.json(
+          { error: resumeUrlError.message },
+          { status: 500 },
+        );
+      }
+    }
+
+    const { error: applicantServicesError } = await admin
       .from("applicant_services")
       .insert(
         serviceRows.map((service) => ({
@@ -233,7 +392,16 @@ export async function POST(request: Request) {
       );
 
     if (applicantServicesError) {
-      await supabase.from("applicants").delete().eq("id", applicant.id);
+      if (uploadedResumePath) {
+        await admin.storage
+          .from("resumes")
+          .remove([uploadedResumePath]);
+      }
+
+      await admin
+        .from("applicants")
+        .delete()
+        .eq("id", applicant.id);
 
       console.error(
         "[POST /api/applicants - Applicant Services Insert Error]:",

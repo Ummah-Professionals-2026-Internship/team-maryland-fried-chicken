@@ -92,6 +92,74 @@ function recommendationRow(applicantId, rec, index) {
   };
 }
 
+async function resetInitialApplicantStatusIfEmpty(
+  supabase,
+  applicantId,
+) {
+  const {
+    count: remainingRecommendationCount,
+    error: recommendationCountError,
+  } = await supabase
+    .from("recommendations")
+    .select("id", { count: "exact", head: true })
+    .eq("applicant_id", applicantId);
+
+  if (recommendationCountError) {
+    throw new Error(recommendationCountError.message);
+  }
+
+  if ((remainingRecommendationCount ?? 0) > 0) {
+    return null;
+  }
+
+  const { count: matchCount, error: matchCountError } =
+    await supabase
+      .from("matches")
+      .select("id", { count: "exact", head: true })
+      .eq("applicant_id", applicantId);
+
+  if (matchCountError) {
+    throw new Error(matchCountError.message);
+  }
+
+  if ((matchCount ?? 0) > 0) {
+    return null;
+  }
+
+  const { data: applicant, error: applicantError } =
+    await supabase
+      .from("applicants")
+      .select("status, follow_up_phase")
+      .eq("id", applicantId)
+      .maybeSingle();
+
+  if (applicantError) {
+    throw new Error(applicantError.message);
+  }
+
+  if (
+    !applicant ||
+    applicant.status !== "Recommendations Generated" ||
+    (
+      applicant.follow_up_phase &&
+      applicant.follow_up_phase !== "Not Started"
+    )
+  ) {
+    return null;
+  }
+
+  const { error: updateError } = await supabase
+    .from("applicants")
+    .update({ status: "Pending Review" })
+    .eq("id", applicantId);
+
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
+
+  return "Pending Review";
+}
+
 // GET /api/applicants/:id/recommendations
 export async function GET(request, { params }) {
   const { id } = await params;
@@ -361,7 +429,16 @@ export async function DELETE(request, { params }) {
         throw new Error(deleteError.message);
       }
 
-      return NextResponse.json({ deletedIds: [recommendationId] });
+      const applicantStatus =
+        await resetInitialApplicantStatusIfEmpty(
+          supabase,
+          id,
+        );
+
+      return NextResponse.json({
+        deletedIds: [recommendationId],
+        applicantStatus,
+      });
     }
 
     // No recommendationId — clear every non-accepted recommendation for
@@ -378,8 +455,15 @@ export async function DELETE(request, { params }) {
       throw new Error(deleteAllError.message);
     }
 
+    const applicantStatus =
+      await resetInitialApplicantStatusIfEmpty(
+        supabase,
+        id,
+      );
+
     return NextResponse.json({
       deletedIds: (deleted ?? []).map((row) => row.id),
+      applicantStatus,
     });
   } catch (error) {
     return NextResponse.json(
