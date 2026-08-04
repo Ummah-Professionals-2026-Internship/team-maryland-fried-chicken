@@ -4,7 +4,12 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import MainLayout from "@/layouts/MainLayout";
 import { type Applicant } from "@/components/ui/applicant_table";
-import { compareIndustries } from "@/lib/industries";
+import { compareIndustries, INDUSTRY_ORDER } from "@/lib/industries";
+import {
+  getApplicantStatusStyles,
+  APPLICANT_STATUS_OPTIONS,
+  deriveApplicantStatus,
+} from "@/lib/statusStyles";
 
 
 // "Yusuf Ibrahim" -> "YI"
@@ -15,14 +20,6 @@ function getInitials(name: string) {
     .slice(0, 2)
     .join("")
     .toUpperCase();
-}
-
-function getStatusStyles(status?: string) {
-  if (status === "Matched") {
-    return "bg-emerald-50 text-emerald-700";
-  }
-
-  return "bg-amber-50 text-amber-700";
 }
 
 function ChevronIcon({ isOpen }: { isOpen: boolean }) {
@@ -79,7 +76,7 @@ function mapApplicant(raw: Record<string, unknown>): Applicant {
     submitted: raw.submission_date
       ? String(raw.submission_date).split("T")[0]
       : String(raw.submitted ?? ""),
-    status: String(raw.status ?? ""),
+    status: deriveApplicantStatus(raw.status as string, raw.follow_up_phase as string),
     email: String(raw.email ?? ""),
     phone: String(raw.phone_number ?? raw.phone ?? ""),
     careerGoal: String(raw.desired_future_career ?? raw.careerGoal ?? ""),
@@ -94,6 +91,8 @@ export default function ApplicantsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [industryFilter, setIndustryFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [openFields, setOpenFields] = useState<Record<string, boolean>>({});
 
   async function fetchApplicants() {
@@ -124,11 +123,12 @@ export default function ApplicantsPage() {
   const filteredApplicants = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
 
-    if (!query) {
-      return applicants;
-    }
-
     return applicants.filter((applicant) => {
+      if (industryFilter && applicant.category !== industryFilter) return false;
+      if (statusFilter && applicant.status !== statusFilter) return false;
+
+      if (!query) return true;
+
       const searchableText = [
         applicant.name,
         applicant.desiredCareer,
@@ -143,7 +143,7 @@ export default function ApplicantsPage() {
 
       return searchableText.includes(query);
     });
-  }, [searchQuery, applicants]);
+  }, [searchQuery, industryFilter, statusFilter, applicants]);
 
   // Derive categories from actual data so every industry shows up
   const fieldOrder = useMemo(() => {
@@ -192,7 +192,7 @@ export default function ApplicantsPage() {
             </p>
           </div>
 
-          <div className="w-full md:w-80">
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center md:w-auto">
             <label htmlFor="applicant-search" className="sr-only">
               Search applicants
             </label>
@@ -202,8 +202,36 @@ export default function ApplicantsPage() {
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search applicants"
-              className="w-full rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 placeholder:text-slate-500 outline-none transition focus:border-[#007CA6] focus:ring-2 focus:ring-[#007CA6]/20"
+              className="w-full rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 placeholder:text-slate-500 outline-none transition focus:border-[#2F7FA8] focus:ring-2 focus:ring-[#2F7FA8]/20 sm:w-56"
             />
+
+            <select
+              value={industryFilter}
+              onChange={(event) => setIndustryFilter(event.target.value)}
+              aria-label="Filter by industry"
+              className="w-full rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 outline-none transition focus:border-[#2F7FA8] focus:ring-2 focus:ring-[#2F7FA8]/20 sm:w-auto"
+            >
+              <option value="">All Industries</option>
+              {INDUSTRY_ORDER.map((industry) => (
+                <option key={industry} value={industry}>
+                  {industry}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              aria-label="Filter by status"
+              className="w-full rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 outline-none transition focus:border-[#2F7FA8] focus:ring-2 focus:ring-[#2F7FA8]/20 sm:w-auto"
+            >
+              <option value="">All Statuses</option>
+              {APPLICANT_STATUS_OPTIONS.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -306,11 +334,11 @@ export default function ApplicantsPage() {
                               </div>
 
                               <span
-                                className={`text-xs px-2 py-0.5 rounded shrink-0 font-medium ${getStatusStyles(
+                                className={`text-xs px-2 py-0.5 rounded shrink-0 font-medium ${getApplicantStatusStyles(
                                   applicant.status
                                 )}`}
                               >
-                                {applicant.status ?? "Awaiting"}
+                                {applicant.status || "Pending Review"}
                               </span>
                             </div>
 
@@ -354,11 +382,11 @@ export default function ApplicantsPage() {
 
                               <div className="col-span-2">
                                 <span
-                                  className={`text-xs px-2 py-0.5 rounded font-medium ${getStatusStyles(
+                                  className={`text-xs px-2 py-0.5 rounded font-medium ${getApplicantStatusStyles(
                                     applicant.status
                                   )}`}
                                 >
-                                  {applicant.status ?? "Awaiting"}
+                                  {applicant.status || "Pending Review"}
                                 </span>
                               </div>
                             </div>

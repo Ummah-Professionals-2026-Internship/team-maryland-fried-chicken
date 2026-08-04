@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import MainLayout from "@/layouts/MainLayout";
 import { type Advisor } from "@/data/advisors";
-import { compareIndustries } from "@/lib/industries";
+import { compareIndustries, INDUSTRY_ORDER } from "@/lib/industries";
+
+const RELIABILITY_FILTER_OPTIONS = ["High", "Medium", "Low"] as const;
+const AVAILABILITY_FILTER_OPTIONS = ["Available", "Unavailable"] as const;
 
 function getReliabilityStyles(level: string) {
   if (level === "High") {
@@ -110,6 +113,9 @@ export default function AdvisorsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [industryFilter, setIndustryFilter] = useState("");
+  const [reliabilityFilter, setReliabilityFilter] = useState("");
+  const [availabilityFilter, setAvailabilityFilter] = useState("");
   const [openFields, setOpenFields] = useState<Record<string, boolean>>({});
 
   async function fetchAdvisors() {
@@ -140,11 +146,13 @@ export default function AdvisorsPage() {
   const filteredAdvisors = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
 
-    if (!query) {
-      return advisors;
-    }
-
     return advisors.filter((advisor) => {
+      if (industryFilter && advisor.field !== industryFilter) return false;
+      if (reliabilityFilter && advisor.reliabilityLevel !== reliabilityFilter) return false;
+      if (availabilityFilter && advisor.availability !== availabilityFilter) return false;
+
+      if (!query) return true;
+
       const searchableText = [
         advisor.name,
         advisor.jobTitle,
@@ -158,7 +166,7 @@ export default function AdvisorsPage() {
 
       return searchableText.includes(query);
     });
-  }, [searchQuery, advisors]);
+  }, [searchQuery, industryFilter, reliabilityFilter, availabilityFilter, advisors]);
 
   // Derive categories from actual data so every industry shows up
   const fieldOrder = useMemo(() => {
@@ -205,7 +213,7 @@ export default function AdvisorsPage() {
             </p>
           </div>
 
-          <div className="w-full md:w-80">
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center md:w-auto">
             <label htmlFor="advisor-search" className="sr-only">
               Search advisors
             </label>
@@ -215,8 +223,50 @@ export default function AdvisorsPage() {
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search advisors"
-              className="w-full rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 placeholder:text-slate-500 outline-none transition focus:border-[#007CA6] focus:ring-2 focus:ring-[#007CA6]/20"
+              className="w-full rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 placeholder:text-slate-500 outline-none transition focus:border-[#2F7FA8] focus:ring-2 focus:ring-[#2F7FA8]/20 sm:w-48"
             />
+
+            <select
+              value={industryFilter}
+              onChange={(event) => setIndustryFilter(event.target.value)}
+              aria-label="Filter by industry"
+              className="w-full rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 outline-none transition focus:border-[#2F7FA8] focus:ring-2 focus:ring-[#2F7FA8]/20 sm:w-auto"
+            >
+              <option value="">All Industries</option>
+              {INDUSTRY_ORDER.map((industry) => (
+                <option key={industry} value={industry}>
+                  {industry}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={reliabilityFilter}
+              onChange={(event) => setReliabilityFilter(event.target.value)}
+              aria-label="Filter by reliability"
+              className="w-full rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 outline-none transition focus:border-[#2F7FA8] focus:ring-2 focus:ring-[#2F7FA8]/20 sm:w-auto"
+            >
+              <option value="">All Reliability</option>
+              {RELIABILITY_FILTER_OPTIONS.map((level) => (
+                <option key={level} value={level}>
+                  {level}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={availabilityFilter}
+              onChange={(event) => setAvailabilityFilter(event.target.value)}
+              aria-label="Filter by availability"
+              className="w-full rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 outline-none transition focus:border-[#2F7FA8] focus:ring-2 focus:ring-[#2F7FA8]/20 sm:w-auto"
+            >
+              <option value="">All Availability</option>
+              {AVAILABILITY_FILTER_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

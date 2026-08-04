@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 
 import { Shield, Mail, Calendar, KeyRound, ArrowLeft, Trash2, CheckCircle2, XCircle } from "lucide-react";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 export default function UserDetailPage({ params: paramsPromise }) {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function UserDetailPage({ params: paramsPromise }) {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     async function fetchExpandedUserDetails() {
@@ -81,7 +83,7 @@ export default function UserDetailPage({ params: paramsPromise }) {
   }
 
   async function handlePurgeAccount() {
-    if (!confirm("Are you absolutely sure you want to permanently delete this user account? This cannot be undone.")) return;
+    setShowDeleteConfirm(false);
     setUpdating(true);
 
     try {
@@ -273,7 +275,7 @@ export default function UserDetailPage({ params: paramsPromise }) {
                 type="button"
                 variant="ghost"
                 disabled={updating}
-                onClick={handlePurgeAccount}
+                onClick={() => setShowDeleteConfirm(true)}
                 className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50 font-semibold px-3 rounded-xl text-xs gap-1 cursor-pointer disabled:opacity-50"
               >
                 <Trash2 size={13} />
@@ -284,6 +286,17 @@ export default function UserDetailPage({ params: paramsPromise }) {
         )}
 
       </div>
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Delete user account"
+        message="This permanently deletes this user account and cannot be undone."
+        confirmLabel="Delete Account"
+        destructive
+        loading={updating}
+        onConfirm={handlePurgeAccount}
+      />
     </MainLayout>
   );
 }
