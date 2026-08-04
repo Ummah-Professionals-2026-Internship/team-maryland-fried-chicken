@@ -166,6 +166,10 @@ export default function ApplicantDetailPage() {
   const [caseManagementOpen, setCaseManagementOpen] = useState(false);
   const [additionalSessionRequested, setAdditionalSessionRequested] =
     useState(false);
+  const [
+    replacementRecommendationsGenerated,
+    setReplacementRecommendationsGenerated,
+  ] = useState(false);
   const [deleteApplicantOpen, setDeleteApplicantOpen] = useState(false);
   const [isDeletingApplicant, setIsDeletingApplicant] = useState(false);
   const [applicantDeleteError, setApplicantDeleteError] =
@@ -203,6 +207,7 @@ export default function ApplicantDetailPage() {
   }
 
   function handleManualMatched(result: {
+    applicantStatus: string;
     advisorId: string;
     advisorName: string;
     jobTitle: string;
@@ -227,8 +232,14 @@ export default function ApplicantDetailPage() {
     setAcceptedAdvisorId(result.advisorId);
     setRecommendations([]);
     setHasGenerated(false);
+    setReplacementRecommendationsGenerated(false);
     setApplicant((current) =>
-      current ? { ...current, status: "Matched" } : current,
+      current
+        ? {
+            ...current,
+            status: result.applicantStatus,
+          }
+        : current,
     );
     setAdditionalSessionRequested(false);
     setAcceptError(null);
@@ -331,8 +342,16 @@ export default function ApplicantDetailPage() {
         }),
       );
       setApplicant((current) =>
-        current ? { ...current, status: "Matched" } : current,
+        current
+          ? {
+              ...current,
+              status: String(
+                body.applicantStatus ?? "Matched",
+              ),
+            }
+          : current,
       );
+      setReplacementRecommendationsGenerated(false);
       setAdditionalSessionRequested(false);
     } catch (err) {
       setAcceptError(
@@ -390,6 +409,7 @@ export default function ApplicantDetailPage() {
         ),
       );
       setHasGenerated(true);
+      setReplacementRecommendationsGenerated(false);
       setRecError(null);
     } catch (err) {
       setAcceptError(
@@ -555,7 +575,11 @@ export default function ApplicantDetailPage() {
 
           // A "Matched" applicant with no accepted recommendation was
           // matched manually — fetch that match's advisor for display.
-          if (!acceptedRecommendation && data.status === "Matched") {
+          if (
+            !acceptedRecommendation &&
+            (data.status === "Matched" ||
+              data.status === "Follow Up")
+          ) {
             const manualMatchResponse = await fetch(
               `/api/applicants/${id}/manual-match`,
             );
@@ -566,6 +590,9 @@ export default function ApplicantDetailPage() {
               if (manualMatchData) {
                 setManualMatch(manualMatchData);
                 setAcceptedAdvisorId(manualMatchData.advisorId);
+                setRecommendations([]);
+                setHasGenerated(false);
+                setReplacementRecommendationsGenerated(false);
               }
             }
           }
@@ -606,11 +633,12 @@ export default function ApplicantDetailPage() {
 
       const data = await response.json();
       setRecommendations(data);
+      setHasGenerated(true);
+      setReplacementRecommendationsGenerated(true);
     } catch (err) {
       setRecError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setRecLoading(false);
-      setHasGenerated(true);
     }
   }
 
@@ -962,9 +990,12 @@ export default function ApplicantDetailPage() {
                     Advisor Recommendations
                   </h2>
                   <p className="text-sm text-zinc-500">
-                    {hasGenerated && !recLoading && !recError
-                      ? `${recommendations.length} match${recommendations.length === 1 ? "" : "es"} found`
-                      : "No recommendations generated yet."}
+                    {acceptedAdvisorId !== null &&
+                    !replacementRecommendationsGenerated
+                      ? "1 accepted match"
+                      : hasGenerated && !recLoading && !recError
+                        ? `${recommendations.length} match${recommendations.length === 1 ? "" : "es"} found`
+                        : "No recommendations generated yet."}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -1111,7 +1142,7 @@ export default function ApplicantDetailPage() {
                     // Show all cards when no match yet, or when rematch is allowed.
                     // Once a match is accepted, hide all other cards.
                     acceptedAdvisorId === null ||
-                    additionalSessionRequested ||
+                    replacementRecommendationsGenerated ||
                     rec.advisorId === acceptedAdvisorId ||
                     rec.recommendationStatus === "Accepted"
                   )
@@ -1122,7 +1153,7 @@ export default function ApplicantDetailPage() {
                   const isBlocked =
                     acceptedAdvisorId !== null &&
                     !isAccepted &&
-                    !additionalSessionRequested;
+                    !replacementRecommendationsGenerated;
 
                   return (
                     <Card

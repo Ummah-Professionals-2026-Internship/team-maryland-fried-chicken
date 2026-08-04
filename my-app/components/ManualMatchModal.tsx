@@ -26,6 +26,7 @@ type AdvisorSummary = {
 };
 
 type ManualMatchResult = {
+  applicantStatus: string;
   advisorId: string;
   advisorName: string;
   jobTitle: string;
@@ -205,6 +206,9 @@ export default function ManualMatchModal({
       }
 
       onMatched({
+        applicantStatus: String(
+          body.applicantStatus ?? "Matched",
+        ),
         advisorId: selectedAdvisor.advisorId,
         advisorName: selectedAdvisor.advisorName,
         jobTitle: selectedAdvisor.jobTitle,

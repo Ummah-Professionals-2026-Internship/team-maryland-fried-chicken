@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getApplicantById } from "@/lib/applicantService";
 import { getAllAdvisors } from "@/lib/advisorService";
 import { generateRecommendations } from "@/lib/recommendationEngine";
-import { createClient } from "@/utils/supabase/server";
+import { requireAdminOrStaff } from "@/lib/requireStaffRole";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -195,7 +195,16 @@ export async function GET(request, { params }) {
   }
 
   try {
-    const supabase = createClient();
+  const authorization = await requireAdminOrStaff();
+
+  if (authorization.error) {
+    return NextResponse.json(
+      { error: authorization.error },
+      { status: authorization.status },
+    );
+  }
+
+  const supabase = authorization.admin;
 
     const { data: advisors, error: advisorsError } =
       await getAllAdvisors();
@@ -332,11 +341,20 @@ export async function GET(request, { params }) {
       }
     }
 
-    await supabase
-      .from("applicants")
-      .update({ status: "Recommendations Generated" })
-      .eq("id", id)
-      .neq("status", "Matched");
+    if (
+      !["Matched", "Follow Up", "Closed"].includes(
+        applicant.status,
+      )
+    ) {
+      const { error: statusUpdateError } = await supabase
+        .from("applicants")
+        .update({ status: "Recommendations Generated" })
+        .eq("id", id);
+
+      if (statusUpdateError) {
+        throw new Error(statusUpdateError.message);
+      }
+    }
 
     const responseRows = [
       ...(preservedRecommendation
@@ -388,7 +406,16 @@ export async function DELETE(request, { params }) {
     );
   }
 
-  const supabase = createClient();
+  const authorization = await requireAdminOrStaff();
+
+  if (authorization.error) {
+    return NextResponse.json(
+      { error: authorization.error },
+      { status: authorization.status },
+    );
+  }
+
+  const supabase = authorization.admin;
 
   try {
     if (recommendationId) {
