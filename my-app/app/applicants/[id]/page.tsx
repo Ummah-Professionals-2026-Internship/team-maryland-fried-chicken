@@ -650,7 +650,7 @@ export default function ApplicantDetailPage() {
                 <h1 className="mt-4 text-xl font-bold text-zinc-900">
                   {applicant.name}
                 </h1>
-                <p className="text-zinc-600">{applicant.desiredCareer}</p>
+                <p className="text-zinc-700">{applicant.desiredCareer}</p>
 
                 <div className="mt-3 space-y-1">
                   {applicant.email && (
@@ -861,7 +861,7 @@ export default function ApplicantDetailPage() {
               <Card className="border-zinc-200">
                 <CardContent className="p-6">
                   <h2 className="font-semibold text-zinc-900">Additional Notes</h2>
-                  <p className="mt-3 text-sm text-zinc-600 leading-relaxed">
+                  <p className="mt-3 text-sm text-zinc-800 leading-relaxed">
                     {applicant.additionalNotes}
                   </p>
                 </CardContent>
@@ -1078,7 +1078,7 @@ export default function ApplicantDetailPage() {
                         />
 
                         {rec.explanation?.length > 0 && (
-                          <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-zinc-600">
+                          <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-zinc-700">
                             {rec.explanation.map((line: string) => (
                               <li key={line}>{line}</li>
                             ))}

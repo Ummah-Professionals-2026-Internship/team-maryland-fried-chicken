@@ -285,10 +285,10 @@ export default function ApplicantsPage() {
                                   <p className="text-zinc-900 text-sm truncate font-medium">
                                     {applicant.name}
                                   </p>
-                                  <p className="text-slate-600 text-xs">
+                                  <p className="text-zinc-700 text-xs">
                                     {applicant.desiredCareer ?? "—"}
                                   </p>
-                                  <p className="text-slate-600 text-xs">
+                                  <p className="text-zinc-700 text-xs">
                                     {applicant.submitted ?? "—"}
                                   </p>
 
