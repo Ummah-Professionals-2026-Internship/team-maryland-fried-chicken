@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { type Applicant } from "@/components/ui/applicant_table";
+import { getApplicantStatusStyles } from "@/lib/statusStyles";
 import ManualMatchModal from "@/components/ManualMatchModal";
 import {
   ApplicantCaseManagement,
@@ -712,15 +713,9 @@ export default function ApplicantDetailPage() {
                     {initials(applicant.name)}
                   </span>
                   <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
-                      applicant.status === "Matched"
-                        ? "bg-emerald-50 text-emerald-700"
-                        : applicant.status === "Closed"
-                          ? "bg-zinc-100 text-zinc-700"
-                          : applicant.status === "Recommendations Generated"
-                            ? "bg-sky-50 text-sky-700"
-                            : "bg-amber-50 text-amber-700"
-                    }`}
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${getApplicantStatusStyles(
+                      applicant.status,
+                    )}`}
                   >
                     {applicant.status === "Matched" || applicant.status === "Closed" ? (
                       <CheckCircle2 className="h-3.5 w-3.5" />

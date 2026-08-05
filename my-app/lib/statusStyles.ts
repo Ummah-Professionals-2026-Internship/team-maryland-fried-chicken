@@ -15,6 +15,9 @@ export function getApplicantStatusStyles(status?: string): string {
       return "bg-amber-50 text-amber-700";
     case "Matched":
       return "bg-emerald-50 text-emerald-700";
+    // The API stores this status as "Follow Up" (space); keep the hyphenated
+    // spelling too so any legacy/derived value still maps to a color.
+    case "Follow Up":
     case "Follow-up":
       return "bg-blue-50 text-blue-700";
     case "Closed":
@@ -29,7 +32,7 @@ export const APPLICANT_STATUS_OPTIONS = [
   "Pending Review",
   "Recommendations Generated",
   "Matched",
-  "Follow-up",
+  "Follow Up",
   "Closed",
 ] as const;
 
@@ -53,7 +56,7 @@ export function deriveApplicantStatus(
       String(followUpPhase ?? ""),
     )
   ) {
-    return "Follow-up";
+    return "Follow Up";
   }
   return status;
 }
