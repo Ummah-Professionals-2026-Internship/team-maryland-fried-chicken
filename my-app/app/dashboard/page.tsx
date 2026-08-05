@@ -197,7 +197,7 @@ export default function Dashboard() {
                 <button
                   onClick={() => router.push("/applicants")}
                   className="text-xs hover:text-primary transition-colors cursor-pointer"
-                  style={{ color: "#007CA6" }}
+                  style={{ color: "#2F7FA8" }}
                 >
                   View all →
                 </button>
@@ -214,6 +214,7 @@ export default function Dashboard() {
             </div>
 
             <CardContent>
+              <div className="w-full overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -252,6 +253,7 @@ export default function Dashboard() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </div>

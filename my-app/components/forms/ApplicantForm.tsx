@@ -460,14 +460,14 @@ export default function ApplicantForm() {
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-slate-400">
           All fields marked <span className="text-red-500">*</span> are required
         </p>
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           style={{ backgroundColor: "#2F7FA8" }}
         >
           {isSubmitting ? "Submitting..." : "Submit Application"}

@@ -131,7 +131,7 @@ export default function ManageUsersPage() {
             type="button"
             onClick={() => router.push(`/admin/users/new-user?callbackUrl=${encodeURIComponent(pathname)}`)}
             size="sm"
-            className="cursor-pointer gap-1.5 self-start sm:self-auto bg-[#007CA6] hover:bg-[#00668a] text-white rounded-xl"
+            className="cursor-pointer gap-1.5 self-start sm:self-auto bg-[#2F7FA8] hover:bg-[#286E92] text-white rounded-xl"
           >
             <UserPlus size={16} />
             Add System User
@@ -156,6 +156,7 @@ export default function ManageUsersPage() {
           </CardHeader>
 
           <CardContent>
+            <div className="w-full overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -234,6 +235,7 @@ export default function ManageUsersPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
 
             {filteredUsers.length === 0 && (
               <div className="w-full text-center text-slate-600 text-xs py-8">

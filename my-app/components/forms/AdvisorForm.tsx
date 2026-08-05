@@ -441,11 +441,11 @@ export default function AdvisorForm() {
               <Button
                 type="button"
                 variant="ghost"
-                className="flex w-full items-center justify-between p-0 text-xl"
+                className="flex h-auto w-full items-center justify-between gap-3 whitespace-normal p-0 text-left text-lg sm:text-xl"
               >
                 <span>Want to help us make even better matches? (Optional)</span>
                 <ChevronDown
-                  className={`h-4 w-4 transition-transform ${
+                  className={`h-4 w-4 shrink-0 transition-transform ${
                     isOpen ? "rotate-180" : ""
                   }`}
                 />
@@ -527,14 +527,14 @@ export default function AdvisorForm() {
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-slate-400">
           All fields marked <span className="text-red-500">*</span> are required
         </p>
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           style={{ backgroundColor: "#2F7FA8" }}
         >
           {isSubmitting ? "Submitting..." : "Submit Advisor Profile"}
