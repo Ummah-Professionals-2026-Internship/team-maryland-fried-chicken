@@ -4,9 +4,8 @@
 //   Pending Review            -> Red
 //   Recommendations Generated -> Yellow
 //   Matched                   -> Green
-//   Follow-up                 -> Blue   (derived: a Matched applicant in an
-//                                        active follow-up phase — see mapApplicant)
-//   Closed                    -> Purple
+//   Follow Up                 -> Purple (API stores this status as "Follow Up")
+//   Closed                    -> Gray
 export function getApplicantStatusStyles(status?: string): string {
   switch (status) {
     case "Pending Review":
@@ -19,9 +18,9 @@ export function getApplicantStatusStyles(status?: string): string {
     // spelling too so any legacy/derived value still maps to a color.
     case "Follow Up":
     case "Follow-up":
-      return "bg-blue-50 text-blue-700";
-    case "Closed":
       return "bg-purple-50 text-purple-700";
+    case "Closed":
+      return "bg-zinc-100 text-zinc-700";
     default:
       return "bg-slate-100 text-slate-700";
   }

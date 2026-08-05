@@ -252,7 +252,24 @@ export async function POST(request, { params }) {
     );
   }
 
-  const nextCurrentAssignments = currentAssignments + 1;
+  // When a previous match was archived, that step already decremented this
+  // advisor's count if the SAME advisor is being re-selected for a follow-up
+  // (the completed match releases its slot). Re-read the live value so the new
+  // match increments from the released count instead of double-counting from
+  // the stale pre-archive number.
+  let baseAssignments = currentAssignments;
+  if (archivedMatch) {
+    const { data: freshAdvisor } = await supabase
+      .from("advisors")
+      .select("currentAssignments")
+      .eq("id", advisorId)
+      .maybeSingle();
+    baseAssignments = Number(
+      freshAdvisor?.currentAssignments ?? currentAssignments,
+    );
+  }
+
+  const nextCurrentAssignments = baseAssignments + 1;
 
   const { error: advisorUpdateError } = await supabase
     .from("advisors")
