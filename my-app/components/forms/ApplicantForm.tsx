@@ -4,6 +4,7 @@ import * as React from "react";
 import { Upload, CheckCircle2 } from "lucide-react";
 import {
   ACADEMIC_STANDINGS,
+  COUNTRY_CODES,
   GENDERS,
   INDUSTRIES,
 } from "@/data/formOptions";
@@ -39,6 +40,7 @@ type ApplicantFormState = {
   firstName: string;
   lastName: string;
   email: string;
+  countryCode: string;
   phone: string;
   gender: string;
   county: string;
@@ -58,6 +60,7 @@ const initialState: ApplicantFormState = {
   firstName: "",
   lastName: "",
   email: "",
+  countryCode: "+1",
   phone: "",
   gender: "",
   county: "",
@@ -79,7 +82,7 @@ export default function ApplicantForm() {
   const [submitted, setSubmitted] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
 
   const set = <K extends keyof ApplicantFormState>(
     key: K,
@@ -98,6 +101,13 @@ export default function ApplicantForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (form.phone && !/^\d+$/.test(form.phone)) {
+      setError(
+        "Only enter digits. Do not include spaces, dashes, parentheses, or other characters.",
+      );
+      return;
+    }
 
     const missingFields: string[] = [];
     if (!form.county.trim()) missingFields.push("County");
@@ -118,16 +128,26 @@ export default function ApplicantForm() {
         : form.referralSource;
 
     try {
+      const submission = new FormData();
+      const { services, ...textFields } = form;
+
+      Object.entries(textFields).forEach(([key, value]) => {
+        submission.append(key, value);
+      });
+
+      services.forEach((service) => {
+        submission.append("services", service);
+      });
+
+      submission.set("source", finalSource || "");
+
+      if (resume) {
+        submission.set("resume", resume);
+      }
+
       const response = await fetch("/api/applicants", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...form,
-          source: finalSource || null,
-          resumeName: resume?.name ?? null,
-        }),
+        body: submission,
       });
 
       const result = (await response.json().catch(() => ({}))) as {
@@ -223,14 +243,25 @@ export default function ApplicantForm() {
             />
           </Field>
           <Field label="Phone Number" required htmlFor="phone">
-            <TextField
-              id="phone"
-              type="tel"
-              required
-              placeholder="+1 (416) 555-0000"
-              value={form.phone}
-              onChange={(e) => set("phone", e.target.value)}
-            />
+            <div className="flex gap-2">
+              <SelectField
+                aria-label="Country code"
+                required
+                options={COUNTRY_CODES}
+                value={form.countryCode}
+                onChange={(e) => set("countryCode", e.target.value)}
+                className="w-28 shrink-0"
+              />
+              <TextField
+                id="phone"
+                type="tel"
+                inputMode="numeric"
+                required
+                placeholder="2086221234"
+                value={form.phone}
+                onChange={(e) => set("phone", e.target.value)}
+              />
+            </div>
           </Field>
           <Field label="Gender" required htmlFor="gender">
             <SelectField
@@ -326,25 +357,44 @@ export default function ApplicantForm() {
         </FieldGrid>
 
         <Field label="Resume" className="mt-5">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="flex w-full flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center transition-colors hover:border-[#2F7FA8] hover:bg-white"
+          <label
+            htmlFor="applicantResume"
+            className="flex w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center transition-colors hover:border-[#2F7FA8] hover:bg-white"
           >
             <Upload className="h-5 w-5 text-slate-400" />
+
             <span className="text-sm font-medium text-slate-700">
-              {resume ? resume.name : "Click to upload your resume"}
+              {resume
+                ? `${resume.name} selected`
+                : "Click to upload your resume"}
             </span>
-            <span className="text-xs text-[#2F7FA8]">
-              PDF, DOC, or DOCX — max {MAX_RESUME_MB} MB
+
+            <span
+              className={
+                resume
+                  ? "text-xs font-medium text-emerald-700"
+                  : "text-xs text-[#2F7FA8]"
+              }
+            >
+              {resume
+                ? "Resume selected successfully"
+                : `PDF, DOC, or DOCX — max ${MAX_RESUME_MB} MB`}
             </span>
-          </button>
+          </label>
+
           <input
-            ref={fileInputRef}
+            id="applicantResume"
+            name="resume"
             type="file"
-            accept=".pdf,.doc,.docx"
-            className="hidden"
-            onChange={(e) => onFile(e.target.files?.[0])}
+            accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            className="sr-only"
+            onChange={(event) => {
+              const selectedFile = event.currentTarget.files?.[0];
+
+              if (selectedFile) {
+                onFile(selectedFile);
+              }
+            }}
           />
         </Field>
       </FormSection>

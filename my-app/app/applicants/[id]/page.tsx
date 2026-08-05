@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
-import { CheckCircle2, ClipboardList, FileText, Clock, RotateCcw, Sparkles, Users } from "lucide-react";
+import { CheckCircle2, ClipboardList, FileText, Clock, RotateCcw, Sparkles, Trash2, Users } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
 import { Card, CardContent } from "@/components/ui/card";
+import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,7 @@ type ManualMatchInfo = {
 
 // Shape returned by GET /api/applicants/:id/recommendations
 type Recommendation = {
+  recommendationId: string;
   advisorId: string;
   advisorName: string;
   jobTitle: string;
@@ -71,6 +73,28 @@ function initials(name: string) {
     .toUpperCase();
 }
 
+function getApplicantServices(
+  raw: Record<string, unknown>,
+): string[] | undefined {
+  const junctionRows = raw.applicant_services as
+    | Array<{ service_types?: { name?: string } | null }>
+    | null
+    | undefined;
+
+  const services = (junctionRows ?? [])
+    .map((row) => row.service_types?.name)
+    .filter((name): name is string => Boolean(name));
+
+  if (services.length > 0) {
+    return services;
+  }
+
+  const legacyService = (
+    raw.service_types as { name?: string } | null
+  )?.name;
+
+  return legacyService ? [legacyService] : undefined;
+}
 // Maps a raw Supabase applicant row to the Applicant UI type
 function mapApplicant(raw: Record<string, unknown>): Applicant {
   const county = String(raw.location_county ?? raw.county ?? "");
@@ -83,9 +107,7 @@ function mapApplicant(raw: Record<string, unknown>): Applicant {
     category: String(raw.industry ?? raw.category ?? ""),
     desiredCareer: String(raw.desired_future_career ?? raw.desiredCareer ?? ""),
     yearsExp: typeof raw.yearsExp === "number" ? raw.yearsExp : undefined,
-    services: (raw.service_types as { name?: string } | null)?.name
-      ? [(raw.service_types as { name?: string }).name!]
-      : undefined,
+    services: getApplicantServices(raw),
     submitted: raw.submission_date
       ? String(raw.submission_date).split("T")[0]
       : String(raw.submitted ?? ""),
@@ -121,6 +143,7 @@ const INDUSTRY_OPTIONS = [
 
 export default function ApplicantDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [applicant, setApplicant] = useState<Applicant | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -134,13 +157,57 @@ export default function ApplicantDetailPage() {
   const [acceptingAdvisorId, setAcceptingAdvisorId] = useState<string | null>(null);
   const [acceptError, setAcceptError] = useState<string | null>(null);
   const [isUndoing, setIsUndoing] = useState(false);
+  const [deletingRecommendationId, setDeletingRecommendationId] =
+    useState<string | null>(null);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [manualMatchOpen, setManualMatchOpen] = useState(false);
   const [manualMatch, setManualMatch] = useState<ManualMatchInfo | null>(null);
   const [caseManagementOpen, setCaseManagementOpen] = useState(false);
   const [additionalSessionRequested, setAdditionalSessionRequested] =
     useState(false);
+  const [
+    replacementRecommendationsGenerated,
+    setReplacementRecommendationsGenerated,
+  ] = useState(false);
+  const [deleteApplicantOpen, setDeleteApplicantOpen] = useState(false);
+  const [isDeletingApplicant, setIsDeletingApplicant] = useState(false);
+  const [applicantDeleteError, setApplicantDeleteError] =
+    useState<string | null>(null);
+
+  async function handleDeleteApplicant() {
+    setIsDeletingApplicant(true);
+    setApplicantDeleteError(null);
+
+    try {
+      const response = await fetch(`/api/applicants/${id}`, {
+        method: "DELETE",
+      });
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          body.error ?? `Server error: ${response.status}`,
+        );
+      }
+
+      setDeleteApplicantOpen(false);
+      router.push("/applicants");
+      router.refresh();
+    } catch (err) {
+      setApplicantDeleteError(
+        err instanceof Error
+          ? err.message
+          : "Failed to delete applicant.",
+      );
+    } finally {
+      setIsDeletingApplicant(false);
+    }
+  }
 
   function handleManualMatched(result: {
+    applicantStatus: string;
     advisorId: string;
     advisorName: string;
     jobTitle: string;
@@ -163,21 +230,20 @@ export default function ApplicantDetailPage() {
       maxMonthlyAssignments: result.maxMonthlyAssignments,
     });
     setAcceptedAdvisorId(result.advisorId);
-    setRecommendations((current) =>
-      current.map((item) =>
-        item.recommendationStatus === "Accepted"
-          ? {
-              ...item,
-              recommendationStatus: "Rejected",
-            }
-          : item,
-      ),
-    );
+    setRecommendations([]);
+    setHasGenerated(false);
+    setReplacementRecommendationsGenerated(false);
     setApplicant((current) =>
-      current ? { ...current, status: "Matched" } : current,
+      current
+        ? {
+            ...current,
+            status: result.applicantStatus,
+          }
+        : current,
     );
     setAdditionalSessionRequested(false);
     setAcceptError(null);
+    setRecError(null);
   }
 
   // Industry is editable — advisors report it is frequently mis-filed and use
@@ -276,8 +342,16 @@ export default function ApplicantDetailPage() {
         }),
       );
       setApplicant((current) =>
-        current ? { ...current, status: "Matched" } : current,
+        current
+          ? {
+              ...current,
+              status: String(
+                body.applicantStatus ?? "Matched",
+              ),
+            }
+          : current,
       );
+      setReplacementRecommendationsGenerated(false);
       setAdditionalSessionRequested(false);
     } catch (err) {
       setAcceptError(
@@ -314,7 +388,9 @@ export default function ApplicantDetailPage() {
         current
           ? {
               ...current,
-              status: "Recommendations Generated",
+              status: String(
+                body.applicantStatus ?? "Recommendations Generated",
+              ),
             }
           : current,
       );
@@ -333,6 +409,7 @@ export default function ApplicantDetailPage() {
         ),
       );
       setHasGenerated(true);
+      setReplacementRecommendationsGenerated(false);
       setRecError(null);
     } catch (err) {
       setAcceptError(
@@ -342,6 +419,112 @@ export default function ApplicantDetailPage() {
       );
     } finally {
       setIsUndoing(false);
+    }
+  }
+
+  async function handleDeleteRecommendation(rec: Recommendation) {
+    if (
+      !window.confirm(
+        `Remove ${rec.advisorName} from this applicant's recommendations?`,
+      )
+    ) {
+      return;
+    }
+
+    setDeletingRecommendationId(rec.recommendationId);
+    setDeleteError(null);
+
+    try {
+      const response = await fetch(
+        `/api/applicants/${id}/recommendations?recommendationId=${rec.recommendationId}`,
+        { method: "DELETE" },
+      );
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(body.error ?? `Server error: ${response.status}`);
+      }
+
+      const remainingRecommendations = recommendations.filter(
+        (item) => item.recommendationId !== rec.recommendationId,
+      );
+
+      setRecommendations(remainingRecommendations);
+      setHasGenerated(remainingRecommendations.length > 0);
+
+      if (body.applicantStatus) {
+        setApplicant((current) =>
+          current
+            ? {
+                ...current,
+                status: String(body.applicantStatus),
+              }
+            : current,
+        );
+      }
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error
+          ? err.message
+          : "Failed to delete recommendation.",
+      );
+    } finally {
+      setDeletingRecommendationId(null);
+    }
+  }
+
+  async function handleDeleteAllRecommendations() {
+    if (
+      !window.confirm(
+        "Delete all recommendations for this applicant? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+
+    setIsDeletingAll(true);
+    setDeleteError(null);
+
+    try {
+      const response = await fetch(
+        `/api/applicants/${id}/recommendations`,
+        { method: "DELETE" },
+      );
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(body.error ?? `Server error: ${response.status}`);
+      }
+
+      const deletedIds: string[] = body.deletedIds ?? [];
+
+      const remainingRecommendations = recommendations.filter(
+        (item) => !deletedIds.includes(item.recommendationId),
+      );
+
+      setRecommendations(remainingRecommendations);
+      setHasGenerated(remainingRecommendations.length > 0);
+
+      if (body.applicantStatus) {
+        setApplicant((current) =>
+          current
+            ? {
+                ...current,
+                status: String(body.applicantStatus),
+              }
+            : current,
+        );
+      }
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error
+          ? err.message
+          : "Failed to delete recommendations.",
+      );
+    } finally {
+      setIsDeletingAll(false);
     }
   }
 
@@ -392,7 +575,11 @@ export default function ApplicantDetailPage() {
 
           // A "Matched" applicant with no accepted recommendation was
           // matched manually — fetch that match's advisor for display.
-          if (!acceptedRecommendation && data.status === "Matched") {
+          if (
+            !acceptedRecommendation &&
+            (data.status === "Matched" ||
+              data.status === "Follow Up")
+          ) {
             const manualMatchResponse = await fetch(
               `/api/applicants/${id}/manual-match`,
             );
@@ -403,6 +590,9 @@ export default function ApplicantDetailPage() {
               if (manualMatchData) {
                 setManualMatch(manualMatchData);
                 setAcceptedAdvisorId(manualMatchData.advisorId);
+                setRecommendations([]);
+                setHasGenerated(false);
+                setReplacementRecommendationsGenerated(false);
               }
             }
           }
@@ -443,17 +633,22 @@ export default function ApplicantDetailPage() {
 
       const data = await response.json();
       setRecommendations(data);
+      setHasGenerated(true);
+      setReplacementRecommendationsGenerated(true);
     } catch (err) {
       setRecError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setRecLoading(false);
-      setHasGenerated(true);
     }
   }
 
   const matchActionsDisabled =
     applicant?.status === "Matched" &&
     !additionalSessionRequested;
+
+  const deletableRecommendationCount = recommendations.filter(
+    (rec) => rec.recommendationStatus !== "Accepted",
+  ).length;
 
   return (
     <MainLayout>
@@ -539,7 +734,7 @@ export default function ApplicantDetailPage() {
                 <h1 className="mt-4 text-xl font-bold text-zinc-900">
                   {applicant.name}
                 </h1>
-                <p className="text-zinc-600">{applicant.desiredCareer}</p>
+                <p className="text-zinc-700">{applicant.desiredCareer}</p>
 
                 <div className="mt-3 space-y-1">
                   {applicant.email && (
@@ -564,7 +759,7 @@ export default function ApplicantDetailPage() {
                     <div className="flex justify-between text-sm">
                       <span className="text-zinc-500">University</span>
                       <span className="text-zinc-900 font-medium text-right max-w-[60%]">{applicant.university}</span>
-                    </div> 
+                    </div>
                   )}
                   {applicant.major && (
                     <div className="flex justify-between text-sm">
@@ -578,7 +773,7 @@ export default function ApplicantDetailPage() {
                       <span className="text-zinc-900 font-medium text-right max-w-[60%]">{applicant.education}</span>
                     </div>
                   )}
-                  
+
                 </div>
 
                 <Dialog
@@ -627,6 +822,29 @@ export default function ApplicantDetailPage() {
                     />
                   </DialogContent>
                 </Dialog>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setApplicantDeleteError(null);
+                    setDeleteApplicantOpen(true);
+                  }}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Applicant
+                </button>
+
+                <ConfirmationDialog
+                  open={deleteApplicantOpen}
+                  onOpenChange={setDeleteApplicantOpen}
+                  title="Delete applicant?"
+                  description={`This will permanently delete ${applicant.name} and all related recommendations and matches. This action cannot be undone.`}
+                  confirmLabel="Delete Applicant"
+                  isLoading={isDeletingApplicant}
+                  error={applicantDeleteError}
+                  onConfirm={handleDeleteApplicant}
+                />
               </CardContent>
             </Card>
 
@@ -729,7 +947,7 @@ export default function ApplicantDetailPage() {
                 <h2 className="font-semibold text-zinc-900">Resume</h2>
                 {applicant.resumeUrl ? (
                   <a
-                    href={applicant.resumeUrl}
+                    href={`/api/applicants/${id}/resume`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-slate-50"
@@ -750,7 +968,7 @@ export default function ApplicantDetailPage() {
               <Card className="border-zinc-200">
                 <CardContent className="p-6">
                   <h2 className="font-semibold text-zinc-900">Additional Notes</h2>
-                  <p className="mt-3 text-sm text-zinc-600 leading-relaxed">
+                  <p className="mt-3 text-sm text-zinc-800 leading-relaxed">
                     {applicant.additionalNotes}
                   </p>
                 </CardContent>
@@ -772,9 +990,12 @@ export default function ApplicantDetailPage() {
                     Advisor Recommendations
                   </h2>
                   <p className="text-sm text-zinc-500">
-                    {hasGenerated && !recLoading && !recError
-                      ? `${recommendations.length} match${recommendations.length === 1 ? "" : "es"} found`
-                      : "No recommendations generated yet."}
+                    {acceptedAdvisorId !== null &&
+                    !replacementRecommendationsGenerated
+                      ? "1 accepted match"
+                      : hasGenerated && !recLoading && !recError
+                        ? `${recommendations.length} match${recommendations.length === 1 ? "" : "es"} found`
+                        : "No recommendations generated yet."}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -794,7 +1015,20 @@ export default function ApplicantDetailPage() {
                     <Users className="h-5 w-5" />
                     Manual Match
                   </button>
+                  {deletableRecommendationCount > 0 && (
+                    <button
+                      onClick={handleDeleteAllRecommendations}
+                      disabled={isDeletingAll || deletingRecommendationId !== null}
+                      className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-6 py-3 text-base font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                      {isDeletingAll ? "Deleting..." : "Delete All"}
+                    </button>
+                  )}
                 </div>
+                {deleteError && (
+                  <p className="text-sm font-medium text-red-600">{deleteError}</p>
+                )}
               </CardContent>
             </Card>
 
@@ -903,14 +1137,23 @@ export default function ApplicantDetailPage() {
 
             {!recLoading && !recError && recommendations.length > 0 && (
               <div className="space-y-4">
-                {recommendations.map((rec, index) => {
+                {recommendations
+                  .filter((rec) =>
+                    // Show all cards when no match yet, or when rematch is allowed.
+                    // Once a match is accepted, hide all other cards.
+                    acceptedAdvisorId === null ||
+                    replacementRecommendationsGenerated ||
+                    rec.advisorId === acceptedAdvisorId ||
+                    rec.recommendationStatus === "Accepted"
+                  )
+                  .map((rec, index) => {
                   const isAccepted =
                     acceptedAdvisorId === rec.advisorId ||
                     rec.recommendationStatus === "Accepted";
                   const isBlocked =
                     acceptedAdvisorId !== null &&
                     !isAccepted &&
-                    !additionalSessionRequested;
+                    !replacementRecommendationsGenerated;
 
                   return (
                     <Card
@@ -945,7 +1188,7 @@ export default function ApplicantDetailPage() {
                         />
 
                         {rec.explanation?.length > 0 && (
-                          <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-zinc-600">
+                          <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-zinc-700">
                             {rec.explanation.map((line: string) => (
                               <li key={line}>{line}</li>
                             ))}
@@ -980,6 +1223,20 @@ export default function ApplicantDetailPage() {
                                 {acceptingAdvisorId === rec.advisorId
                                   ? "Accepting..."
                                   : "Accept"}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteRecommendation(rec)}
+                                disabled={
+                                  deletingRecommendationId !== null ||
+                                  isDeletingAll ||
+                                  acceptingAdvisorId !== null
+                                }
+                                className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                {deletingRecommendationId === rec.recommendationId
+                                  ? "Deleting..."
+                                  : "Delete"}
                               </button>
                               {isBlocked && (
                                 <span className="text-xs text-zinc-500">

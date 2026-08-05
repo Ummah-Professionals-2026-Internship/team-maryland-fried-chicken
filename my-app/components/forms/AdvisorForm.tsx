@@ -3,6 +3,7 @@
 import * as React from "react";
 import { CheckCircle2, ChevronDown } from "lucide-react";
 import {
+  COUNTRY_CODES,
   EXPERIENCE_LEVELS,
   EXPERTISE_SUGGESTIONS,
   GENDERS,
@@ -36,6 +37,9 @@ type AdvisorFormState = {
   firstName: string;
   lastName: string;
   email: string;
+  countryCode: string;
+  phone: string;
+  linkedinUrl: string;
   gender: string;
   county: string;
   state: string;
@@ -58,6 +62,9 @@ const initialState: AdvisorFormState = {
   firstName: "",
   lastName: "",
   email: "",
+  countryCode: "+1",
+  phone: "",
+  linkedinUrl: "",
   gender: "",
   county: "",
   state: "",
@@ -114,8 +121,16 @@ export default function AdvisorForm() {
     e.preventDefault();
     setError(null);
 
+    if (form.phone && !/^\d+$/.test(form.phone)) {
+      setError(
+        "Only enter digits. Do not include spaces, dashes, parentheses, or other characters.",
+      );
+      return;
+    }
+
     const missingFields: string[] = [];
 
+    if (!form.phone.trim()) missingFields.push("Phone Number");
     if (!form.county.trim()) missingFields.push("County");
     if (!form.state.trim()) missingFields.push("State");
     if (form.almaMaters.length === 0) missingFields.push("Alma Mater(s)");
@@ -187,6 +202,17 @@ export default function AdvisorForm() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-10">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">
+          Advisor Registration Form
+        </h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Complete the form below to register as an advisor for the Ummah
+          Professionals mentorship program. Fields marked{" "}
+          <span className="text-red-500">*</span> are required.
+        </p>
+      </div>
+
       {/* 1. Personal Information */}
       <FormSection step={1} title="Personal Information">
         <FieldGrid>
@@ -218,7 +244,51 @@ export default function AdvisorForm() {
               onChange={(e) => set("email", e.target.value)}
             />
           </Field>
-          <Field label="Gender" required htmlFor="advGender" labelClassName="text-lg">
+          <Field
+            label="Phone Number"
+            required
+            htmlFor="advPhone"
+            labelClassName="text-lg"
+          >
+            <div className="flex gap-2">
+              <SelectField
+                aria-label="Country code"
+                required
+                options={COUNTRY_CODES}
+                value={form.countryCode}
+                onChange={(e) => set("countryCode", e.target.value)}
+                className="w-28 shrink-0"
+              />
+              <TextField
+                id="advPhone"
+                type="tel"
+                inputMode="numeric"
+                required
+                placeholder="2086221234"
+                value={form.phone}
+                onChange={(e) => set("phone", e.target.value)}
+              />
+            </div>
+          </Field>
+          <Field
+            label="LinkedIn URL"
+            htmlFor="linkedinUrl"
+            labelClassName="text-lg"
+          >
+            <TextField
+              id="linkedinUrl"
+              type="url"
+              placeholder="https://www.linkedin.com/in/username"
+              value={form.linkedinUrl}
+              onChange={(e) => set("linkedinUrl", e.target.value)}
+            />
+          </Field>
+          <Field
+            label="Gender"
+            required
+            htmlFor="advGender"
+            labelClassName="text-lg"
+          >
             <SelectField
               id="advGender"
               required

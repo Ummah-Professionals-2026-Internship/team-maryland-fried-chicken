@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getApplicantById, updateApplicant } from "@/lib/applicantService";
+import { requireAdminOrStaff } from "@/lib/requireStaffRole";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -101,4 +102,82 @@ export async function PATCH(request, { params }) {
   }
 
   return NextResponse.json(data);
+}
+
+// DELETE /api/applicants/:id
+export async function DELETE(_request, { params }) {
+  const { id } = await params;
+
+  if (!UUID_REGEX.test(id)) {
+    return NextResponse.json(
+      { error: "Invalid applicant ID." },
+      { status: 400 },
+    );
+  }
+
+  const authorization = await requireAdminOrStaff();
+
+  if (authorization.error) {
+    return NextResponse.json(
+      { error: authorization.error },
+      { status: authorization.status },
+    );
+  }
+
+  const { data: applicant, error: lookupError } =
+    await authorization.admin
+      .from("applicants")
+      .select("id, resume_url")
+      .eq("id", id)
+      .maybeSingle();
+
+  if (lookupError) {
+    return NextResponse.json(
+      { error: lookupError.message },
+      { status: 500 },
+    );
+  }
+
+  if (!applicant) {
+    return NextResponse.json(
+      { error: "Applicant not found." },
+      { status: 404 },
+    );
+  }
+
+  const { error: deleteError } = await authorization.admin
+    .from("applicants")
+    .delete()
+    .eq("id", id);
+
+  if (deleteError) {
+    return NextResponse.json(
+      { error: deleteError.message },
+      { status: 500 },
+    );
+  }
+
+  const resumePath =
+    typeof applicant.resume_url === "string"
+      ? applicant.resume_url.trim()
+      : "";
+
+  if (resumePath && !/^https?:\/\//i.test(resumePath)) {
+    const { error: storageError } =
+      await authorization.admin.storage
+        .from("resumes")
+        .remove([resumePath]);
+
+    if (storageError) {
+      console.error(
+        "[DELETE /api/applicants/:id - Resume Cleanup Error]:",
+        storageError,
+      );
+    }
+  }
+
+  return NextResponse.json({
+    message: "Applicant deleted successfully.",
+    deletedId: applicant.id,
+  });
 }

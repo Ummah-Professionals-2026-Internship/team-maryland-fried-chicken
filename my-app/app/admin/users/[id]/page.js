@@ -119,7 +119,7 @@ export default function UserDetailPage({ params: paramsPromise }) {
   if (loading) {
     return (
       <MainLayout>
-        <div className="w-full text-center text-muted-foreground text-sm font-medium py-12">
+        <div className="w-full text-center text-slate-600 text-sm font-medium py-12">
           De-serializing user identities & maps...
         </div>
       </MainLayout>
@@ -133,10 +133,10 @@ export default function UserDetailPage({ params: paramsPromise }) {
         {/* TOP COMPONENT TITLE ROW */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-foreground" style={{ fontSize: "1.375rem", fontWeight: 700 }}>
+            <h1 className="text-zinc-900" style={{ fontSize: "1.375rem", fontWeight: 700 }}>
               Profile Parameters
             </h1>
-            <p className="text-muted-foreground text-sm mt-0.5">
+            <p className="text-slate-600 text-sm mt-0.5">
               Reviewing operational backend parameters for individual operator.
             </p>
           </div>
@@ -189,10 +189,10 @@ export default function UserDetailPage({ params: paramsPromise }) {
                 
                 {/* Email Address */}
                 <div className="flex items-center gap-3 p-3 border border-border/50 rounded-xl bg-card">
-                  <Mail size={16} className="text-muted-foreground shrink-0" />
+                  <Mail size={16} className="text-slate-600 shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-muted-foreground text-[11px] font-medium leading-none">Email Address</p>
-                    <p className="text-foreground font-medium text-xs mt-1 truncate">{user.email}</p>
+                    <p className="text-slate-600 text-[11px] font-medium leading-none">Email Address</p>
+                    <p className="text-zinc-900 font-medium text-xs mt-1 truncate">{user.email}</p>
                   </div>
                 </div>
 
@@ -204,8 +204,8 @@ export default function UserDetailPage({ params: paramsPromise }) {
                     <XCircle size={16} className="text-amber-500 shrink-0" />
                   )}
                   <div>
-                    <p className="text-muted-foreground text-[11px] font-medium leading-none">Registry Status</p>
-                    <p className="text-foreground font-medium text-xs mt-1">
+                    <p className="text-slate-600 text-[11px] font-medium leading-none">Registry Status</p>
+                    <p className="text-zinc-900 font-medium text-xs mt-1">
                       {user.confirmed ? "Email Verified" : "Verification Pending"}
                     </p>
                   </div>
@@ -213,19 +213,19 @@ export default function UserDetailPage({ params: paramsPromise }) {
 
                 {/* Date Created */}
                 <div className="flex items-center gap-3 p-3 border border-border/50 rounded-xl bg-card">
-                  <Calendar size={16} className="text-muted-foreground shrink-0" />
+                  <Calendar size={16} className="text-slate-600 shrink-0" />
                   <div>
-                    <p className="text-muted-foreground text-[11px] font-medium leading-none">Onboarding Date</p>
-                    <p className="text-foreground font-medium text-xs mt-1">{formatDate(user.createdAt)}</p>
+                    <p className="text-slate-600 text-[11px] font-medium leading-none">Onboarding Date</p>
+                    <p className="text-zinc-900 font-medium text-xs mt-1">{formatDate(user.createdAt)}</p>
                   </div>
                 </div>
 
                 {/* Last Active Sign In */}
                 <div className="flex items-center gap-3 p-3 border border-border/50 rounded-xl bg-card">
-                  <KeyRound size={16} className="text-muted-foreground shrink-0" />
+                  <KeyRound size={16} className="text-slate-600 shrink-0" />
                   <div>
-                    <p className="text-muted-foreground text-[11px] font-medium leading-none">Last Active Session</p>
-                    <p className="text-foreground font-medium text-xs mt-1">{formatDate(user.lastSignIn)}</p>
+                    <p className="text-slate-600 text-[11px] font-medium leading-none">Last Active Session</p>
+                    <p className="text-zinc-900 font-medium text-xs mt-1">{formatDate(user.lastSignIn)}</p>
                   </div>
                 </div>
 
@@ -233,7 +233,7 @@ export default function UserDetailPage({ params: paramsPromise }) {
 
               {/* Administrative Access Rank Controls */}
               <div className="pt-2 border-t border-border/60 space-y-2">
-                <label className="text-muted-foreground text-xs font-semibold block">
+                <label className="text-slate-600 text-xs font-semibold block">
                   Override Platform Rank Assignment
                 </label>
                 <div className="grid grid-cols-2 gap-2.5">
@@ -244,7 +244,7 @@ export default function UserDetailPage({ params: paramsPromise }) {
                     className={`py-2 px-3 text-xs font-semibold rounded-lg border transition-all cursor-pointer disabled:opacity-50 ${
                       user.role === "staff"
                         ? "bg-slate-100 text-slate-800 border-slate-300 shadow-sm"
-                        : "bg-card text-muted-foreground border-border hover:bg-muted/30"
+                        : "bg-card text-slate-600 border-border hover:bg-muted/30"
                     }`}
                   >
                     DEMOTE TO STAFF
@@ -256,7 +256,7 @@ export default function UserDetailPage({ params: paramsPromise }) {
                     className={`py-2 px-3 text-xs font-semibold rounded-lg border transition-all cursor-pointer disabled:opacity-50 ${
                       user.role === "admin"
                         ? "bg-amber-50 text-amber-800 border-amber-300 shadow-sm"
-                        : "bg-card text-muted-foreground border-border hover:bg-muted/30"
+                        : "bg-card text-slate-600 border-border hover:bg-muted/30"
                     }`}
                   >
                     ELEVATE TO ADMIN
@@ -268,7 +268,7 @@ export default function UserDetailPage({ params: paramsPromise }) {
 
             {/* DANGER CONTROL ACTIONS ZONE */}
             <CardFooter className="bg-slate-50/50 border-t border-border/60 px-6 py-4 flex items-center justify-between">
-              <span className="text-[11px] text-muted-foreground font-medium">
+              <span className="text-[11px] text-slate-600 font-medium">
                 Administrative System Control Block
               </span>
               <Button

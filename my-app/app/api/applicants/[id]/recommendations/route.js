@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getApplicantById } from "@/lib/applicantService";
 import { getAllAdvisors } from "@/lib/advisorService";
 import { generateRecommendations } from "@/lib/recommendationEngine";
-import { createClient } from "@/utils/supabase/server";
+import { requireAdminOrStaff } from "@/lib/requireStaffRole";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -92,6 +92,74 @@ function recommendationRow(applicantId, rec, index) {
   };
 }
 
+async function resetInitialApplicantStatusIfEmpty(
+  supabase,
+  applicantId,
+) {
+  const {
+    count: remainingRecommendationCount,
+    error: recommendationCountError,
+  } = await supabase
+    .from("recommendations")
+    .select("id", { count: "exact", head: true })
+    .eq("applicant_id", applicantId);
+
+  if (recommendationCountError) {
+    throw new Error(recommendationCountError.message);
+  }
+
+  if ((remainingRecommendationCount ?? 0) > 0) {
+    return null;
+  }
+
+  const { count: matchCount, error: matchCountError } =
+    await supabase
+      .from("matches")
+      .select("id", { count: "exact", head: true })
+      .eq("applicant_id", applicantId);
+
+  if (matchCountError) {
+    throw new Error(matchCountError.message);
+  }
+
+  if ((matchCount ?? 0) > 0) {
+    return null;
+  }
+
+  const { data: applicant, error: applicantError } =
+    await supabase
+      .from("applicants")
+      .select("status, follow_up_phase")
+      .eq("id", applicantId)
+      .maybeSingle();
+
+  if (applicantError) {
+    throw new Error(applicantError.message);
+  }
+
+  if (
+    !applicant ||
+    applicant.status !== "Recommendations Generated" ||
+    (
+      applicant.follow_up_phase &&
+      applicant.follow_up_phase !== "Not Started"
+    )
+  ) {
+    return null;
+  }
+
+  const { error: updateError } = await supabase
+    .from("applicants")
+    .update({ status: "Pending Review" })
+    .eq("id", applicantId);
+
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
+
+  return "Pending Review";
+}
+
 // GET /api/applicants/:id/recommendations
 export async function GET(request, { params }) {
   const { id } = await params;
@@ -127,7 +195,16 @@ export async function GET(request, { params }) {
   }
 
   try {
-    const supabase = createClient();
+  const authorization = await requireAdminOrStaff();
+
+  if (authorization.error) {
+    return NextResponse.json(
+      { error: authorization.error },
+      { status: authorization.status },
+    );
+  }
+
+  const supabase = authorization.admin;
 
     const { data: advisors, error: advisorsError } =
       await getAllAdvisors();
@@ -264,11 +341,20 @@ export async function GET(request, { params }) {
       }
     }
 
-    await supabase
-      .from("applicants")
-      .update({ status: "Recommendations Generated" })
-      .eq("id", id)
-      .neq("status", "Matched");
+    if (
+      !["Matched", "Follow Up", "Closed"].includes(
+        applicant.status,
+      )
+    ) {
+      const { error: statusUpdateError } = await supabase
+        .from("applicants")
+        .update({ status: "Recommendations Generated" })
+        .eq("id", id);
+
+      if (statusUpdateError) {
+        throw new Error(statusUpdateError.message);
+      }
+    }
 
     const responseRows = [
       ...(preservedRecommendation
@@ -292,6 +378,127 @@ export async function GET(request, { params }) {
           error instanceof Error
             ? error.message
             : "Failed to load recommendations.",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+// DELETE /api/applicants/:id/recommendations
+// DELETE /api/applicants/:id/recommendations?recommendationId=<uuid>
+export async function DELETE(request, { params }) {
+  const { id } = await params;
+
+  if (!UUID_REGEX.test(id)) {
+    return NextResponse.json(
+      { error: "Invalid applicant ID." },
+      { status: 400 },
+    );
+  }
+
+  const searchParams = new URL(request.url).searchParams;
+  const recommendationId = searchParams.get("recommendationId");
+
+  if (recommendationId && !UUID_REGEX.test(recommendationId)) {
+    return NextResponse.json(
+      { error: "Invalid recommendation ID." },
+      { status: 400 },
+    );
+  }
+
+  const authorization = await requireAdminOrStaff();
+
+  if (authorization.error) {
+    return NextResponse.json(
+      { error: authorization.error },
+      { status: authorization.status },
+    );
+  }
+
+  const supabase = authorization.admin;
+
+  try {
+    if (recommendationId) {
+      const { data: target, error: lookupError } = await supabase
+        .from("recommendations")
+        .select("id, recommendation_status")
+        .eq("id", recommendationId)
+        .eq("applicant_id", id)
+        .maybeSingle();
+
+      if (lookupError) {
+        throw new Error(lookupError.message);
+      }
+
+      if (!target) {
+        return NextResponse.json(
+          { error: "Recommendation not found." },
+          { status: 404 },
+        );
+      }
+
+      if (target.recommendation_status === "Accepted") {
+        return NextResponse.json(
+          {
+            error:
+              "Undo the accepted match before deleting its recommendation.",
+          },
+          { status: 409 },
+        );
+      }
+
+      const { error: deleteError } = await supabase
+        .from("recommendations")
+        .delete()
+        .eq("id", recommendationId);
+
+      if (deleteError) {
+        throw new Error(deleteError.message);
+      }
+
+      const applicantStatus =
+        await resetInitialApplicantStatusIfEmpty(
+          supabase,
+          id,
+        );
+
+      return NextResponse.json({
+        deletedIds: [recommendationId],
+        applicantStatus,
+      });
+    }
+
+    // No recommendationId — clear every non-accepted recommendation for
+    // this applicant. Accepted recommendations are tied to an active
+    // match and must be undone first.
+    const { data: deleted, error: deleteAllError } = await supabase
+      .from("recommendations")
+      .delete()
+      .eq("applicant_id", id)
+      .neq("recommendation_status", "Accepted")
+      .select("id");
+
+    if (deleteAllError) {
+      throw new Error(deleteAllError.message);
+    }
+
+    const applicantStatus =
+      await resetInitialApplicantStatusIfEmpty(
+        supabase,
+        id,
+      );
+
+    return NextResponse.json({
+      deletedIds: (deleted ?? []).map((row) => row.id),
+      applicantStatus,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to delete recommendation(s).",
       },
       { status: 500 },
     );

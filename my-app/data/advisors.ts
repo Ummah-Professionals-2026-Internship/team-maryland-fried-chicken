@@ -1,4 +1,4 @@
-﻿export type Advisor = {
+export type Advisor = {
   id: string;
   initials: string;
   name: string;

@@ -59,9 +59,9 @@ function mapAdvisor(raw: Record<string, unknown>): Advisor {
   const rawIndustry = String(raw.industry ?? raw.field ?? "");
   const field = rawIndustry;
 
-  const city = String(raw.location_city ?? "");
+  const county = String(raw.location_county ?? "");
   const state = String(raw.location_state ?? "");
-  const location = [city, state].filter(Boolean).join(", ") || String(raw.location ?? "");
+  const location = [county, state].filter(Boolean).join(", ") || String(raw.location ?? "");
 
   return {
     id: String(raw.id ?? ""),
@@ -93,16 +93,18 @@ function mapAdvisor(raw: Record<string, unknown>): Advisor {
       .filter(Boolean) as string[] ?? [],
     major: String(raw.major ?? ""),
     university: String(raw.alma_mater ?? raw.university ?? ""),
-    city: String(raw.location_city ?? ""),
+    county: String(raw.location_county ?? ""),
     country: String(raw.country ?? ""),
     stateProvince: String(raw.location_state ?? raw.stateProvince ?? ""),
     careerHistorySummary: String(raw.career_history_summary ?? raw.careerHistorySummary ?? ""),
     mentorshipExperience: String(raw.mentorship_experience ?? raw.mentorshipExperience ?? ""),
-    uniqueCareerExperiences: Array.isArray(raw.uniqueCareerExperiences)
-      ? raw.uniqueCareerExperiences
-      : raw.unique_career_experiences
-      ? [String(raw.unique_career_experiences)]
-      : [],
+    uniqueCareerExperiences: Array.isArray(raw.unique_career_experiences)
+      ? raw.unique_career_experiences.map(String)
+      : Array.isArray(raw.uniqueCareerExperiences)
+        ? raw.uniqueCareerExperiences.map(String)
+        : raw.unique_career_experiences
+          ? [String(raw.unique_career_experiences)]
+          : [],
   };
 }
 
@@ -138,7 +140,7 @@ export default function AdvisorsPage() {
   }
 
   useEffect(() => {
-    fetchAdvisors();
+    void Promise.resolve().then(fetchAdvisors);
   }, []);
 
   const filteredAdvisors = useMemo(() => {
@@ -346,10 +348,10 @@ export default function AdvisorsPage() {
                                   <p className="text-zinc-900 text-sm truncate font-medium">
                                     {advisor.name}
                                   </p>
-                                  <p className="text-slate-600 text-xs">
+                                  <p className="text-zinc-700 text-xs">
                                     {advisor.jobTitle}
                                   </p>
-                                  <p className="text-slate-600 text-xs">
+                                  <p className="text-zinc-700 text-xs">
                                     {advisor.company}
                                   </p>
 

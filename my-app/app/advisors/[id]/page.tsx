@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Check, Pencil, X } from "lucide-react";
+import { Check, Pencil, Trash2, X } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
+import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { type Advisor } from "@/data/advisors";
 import { formatPhone } from "@/lib/formatPhone";
 
@@ -213,16 +214,19 @@ function mapAdvisor(raw: Record<string, unknown>): Advisor {
     stateProvince: String(raw.location_state ?? raw.stateProvince ?? ""),
     careerHistorySummary: String(raw.career_history_summary ?? raw.careerHistorySummary ?? ""),
     mentorshipExperience: String(raw.mentorship_experience ?? raw.mentorshipExperience ?? ""),
-    uniqueCareerExperiences: Array.isArray(raw.uniqueCareerExperiences)
-      ? raw.uniqueCareerExperiences
-      : raw.unique_career_experiences
-      ? [String(raw.unique_career_experiences)]
-      : [],
+    uniqueCareerExperiences: Array.isArray(raw.unique_career_experiences)
+      ? raw.unique_career_experiences.map(String)
+      : Array.isArray(raw.uniqueCareerExperiences)
+        ? raw.uniqueCareerExperiences.map(String)
+        : raw.unique_career_experiences
+          ? [String(raw.unique_career_experiences)]
+          : [],
   };
 }
 
 export default function AdvisorProfilePage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [advisor, setAdvisor] = useState<Advisor | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -234,6 +238,10 @@ export default function AdvisorProfilePage() {
   const [draftAvailability, setDraftAvailability] = useState<string>("");
   const [draftReliability, setDraftReliability] = useState<string>("");
   const [draftIndustry, setDraftIndustry] = useState<string>("");
+  const [deleteAdvisorOpen, setDeleteAdvisorOpen] = useState(false);
+  const [isDeletingAdvisor, setIsDeletingAdvisor] = useState(false);
+  const [advisorDeleteError, setAdvisorDeleteError] =
+    useState<string | null>(null);
 
   function handleStartEdit() {
     if (!advisor) return;
@@ -289,6 +297,37 @@ export default function AdvisorProfilePage() {
       setEditError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setSavingEdit(false);
+    }
+  }
+
+  async function handleDeleteAdvisor() {
+    setIsDeletingAdvisor(true);
+    setAdvisorDeleteError(null);
+
+    try {
+      const response = await fetch(`/api/advisors/${id}`, {
+        method: "DELETE",
+      });
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          body.error ?? `Server error: ${response.status}`,
+        );
+      }
+
+      setDeleteAdvisorOpen(false);
+      router.push("/advisors");
+      router.refresh();
+    } catch (err) {
+      setAdvisorDeleteError(
+        err instanceof Error
+          ? err.message
+          : "Failed to delete advisor.",
+      );
+    } finally {
+      setIsDeletingAdvisor(false);
     }
   }
 
@@ -412,7 +451,7 @@ export default function AdvisorProfilePage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h1 className="text-lg font-bold text-zinc-900">{advisor.name}</h1>
-                      <p className="mt-0.5 text-sm text-slate-500">
+                      <p className="mt-0.5 text-sm text-slate-600">
                         {advisor.jobTitle} · {advisor.company}
                       </p>
                       {advisor.signUpDate && (
@@ -422,15 +461,30 @@ export default function AdvisorProfilePage() {
                       )}
                     </div>
 
-                    {!isEditing && (
+                    <div className="flex shrink-0 items-center gap-2">
+                      {!isEditing && (
+                        <button
+                          type="button"
+                          onClick={handleStartEdit}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Edit
+                        </button>
+                      )}
+
                       <button
-                        onClick={handleStartEdit}
-                        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        type="button"
+                        onClick={() => {
+                          setAdvisorDeleteError(null);
+                          setDeleteAdvisorOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
                       >
-                        <Pencil className="h-3.5 w-3.5" />
-                        Edit
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
                       </button>
-                    )}
+                    </div>
                   </div>
 
                   {!isEditing ? (
@@ -531,6 +585,17 @@ export default function AdvisorProfilePage() {
                 </div>
               </div>
             </div>
+
+            <ConfirmationDialog
+              open={deleteAdvisorOpen}
+              onOpenChange={setDeleteAdvisorOpen}
+              title="Delete advisor?"
+              description={`This will permanently delete ${advisor.name} and remove their related recommendations and matches. This action cannot be undone.`}
+              confirmLabel="Delete Advisor"
+              isLoading={isDeletingAdvisor}
+              error={advisorDeleteError}
+              onConfirm={handleDeleteAdvisor}
+            />
 
             <div className="rounded-xl border border-slate-200 bg-white p-5">
               <div className="mb-2 flex items-center justify-between">

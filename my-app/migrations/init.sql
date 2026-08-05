@@ -283,6 +283,34 @@ ALTER TABLE applicants
 ADD COLUMN IF NOT EXISTS resume_url TEXT;
 
 -- ---------------------------------------------------------------------------
+-- Private applicant resume storage
+-- ---------------------------------------------------------------------------
+
+INSERT INTO storage.buckets (
+  id,
+  name,
+  public,
+  file_size_limit,
+  allowed_mime_types
+)
+VALUES (
+  'resumes',
+  'resumes',
+  false,
+  5242880,
+  ARRAY[
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ]
+)
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- ---------------------------------------------------------------------------
 -- Verify
 -- ---------------------------------------------------------------------------
 SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename;
