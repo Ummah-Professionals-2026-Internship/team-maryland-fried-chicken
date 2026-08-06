@@ -108,6 +108,8 @@ Additional dashboard widgets provide information about:
 
 These values update automatically from the database.
 
+![Dashboard Screenshot](image-1.png)
+
 ---
 
 # 5. Applicant Management
@@ -121,6 +123,8 @@ Features include:
 - Filter by status
 - View applicant profiles
 - Delete applicant records (Admin/Staff)
+
+![Applicant Submissions Page](image-2.png)
 
 ---
 
@@ -154,6 +158,8 @@ View:
 - Manual Matches
 - Recommendation History
 
+![Applicant Profile - No matches](image-3.png)
+
 ---
 
 # 6. Advisor Management
@@ -166,6 +172,8 @@ Features include:
 - Filter by industry
 - Filter by availability
 - Filter by reliability
+
+![Advisor Directory](image-5.png)
 
 ---
 
@@ -201,6 +209,8 @@ Each advisor profile displays:
 - Displays the advisor's reliability level.
 - This field is editable
 
+![Advisor Profile](image-6.png)
+
 ---
 
 # 7. AI Recommendation Engine
@@ -228,6 +238,8 @@ Volunteers may:
 - Delete recommendations
 - Regenerate recommendations
 
+![Recommendation Engine](image-7.png)
+
 ---
 
 # 8. Manual Matching
@@ -242,6 +254,8 @@ The Manual Matching interface allows volunteers to:
 - Assign an advisor directly
 
 Manual matching follows the same business rules as AI-generated matches.
+
+![Applicant Profile - Manual Match](image-4.png)
 
 ---
 
@@ -265,6 +279,8 @@ Applicant statuses include:
 - Closed
 
 These statuses help volunteers understand where each applicant is within the mentoring process.
+
+![Case Management](image-8.png)
 
 ---
 
