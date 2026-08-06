@@ -13,8 +13,6 @@ import {
   Card,
   CardAction,
   CardContent,
-  CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -27,7 +25,7 @@ import {
   TableCell
 } from "@/components/ui/table"
 
-import { Users, Shield, UserX, UserPlus } from "lucide-react"
+import { Users, Shield, UserX, UserPlus, CheckCircle2 } from "lucide-react"
 
 export default function ManageUsersPage() {
   const router = useRouter()
@@ -72,7 +70,7 @@ export default function ManageUsersPage() {
       })
       if (!res.ok) throw new Error()
     } catch {
-      setUsers(originalUsers) // Optimistic UI state rollback matching your pattern
+      setUsers(originalUsers) // Optimistic UI state rollback
     }
   }
 
@@ -153,71 +151,86 @@ export default function ManageUsersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.map((worker) => (
-                  <TableRow key={worker.userId} onClick={() => router.push(`/admin/users/${worker.userId}`)} className="hover:bg-muted/30 transition-colors">
+                {filteredUsers.map((worker) => {
+                  // Fallback check to ensure verified boolean resolves properly
+                  const isUserVerified = worker.isVerified ?? worker.is_verified ?? !!worker.email_confirmed_at;
 
-                    {/* User Identity cell */}
-                    <TableCell className="font-medium text-foreground">
-                      {worker.name || "No Name Set"}
-                    </TableCell>
+                  return (
+                    <TableRow key={worker.userId} onClick={() => router.push(`/admin/users/${worker.userId}`)} className="hover:bg-muted/30 transition-colors cursor-pointer">
 
-                    {/* Email cell */}
-                    <TableCell className="text-muted-foreground">
-                      {worker.email}
-                    </TableCell>
+                      {/* User Identity cell */}
+                      <TableCell className="font-medium text-foreground">
+                        {worker.name || "No Name Set"}
+                      </TableCell>
 
-                    {/* Registry UUID Monospace Code Tag cell */}
-                    <TableCell>
-                      <span className="font-mono text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded border border-border">
-                        {worker.userId}
-                      </span>
-                    </TableCell>
+                      {/* Email cell */}
+                      <TableCell className="text-muted-foreground">
+                        {worker.email}
+                      </TableCell>
 
-                    {/* Access Badges drop logic matching your dynamic state style */}
-                    <TableCell>
-                      <div className="inline-flex items-center relative gap-2">
-                        <Badge
-                          className={
-                            worker.role === "admin"
-                              ? "bg-amber-100 text-amber-800 font-semibold uppercase tracking-wide text-[10px]"
-                              : "bg-slate-100 text-slate-800 font-semibold uppercase tracking-wide text-[10px]"
-                          }
+                      {/* Registry UUID Monospace Code Tag cell */}
+                      <TableCell>
+                        <span className="font-mono text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded border border-border">
+                          {worker.userId}
+                        </span>
+                      </TableCell>
+
+                      {/* Access Badges drop logic */}
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          
+                          {/* Role selector dropdown wrapper */}
+                          <div className="inline-flex items-center relative">
+                            <Badge
+                              className={
+                                worker.role === "admin"
+                                  ? "bg-amber-100 text-amber-800 font-semibold uppercase tracking-wide text-[10px]"
+                                  : "bg-slate-100 text-slate-800 font-semibold uppercase tracking-wide text-[10px]"
+                              }
+                            >
+                              {worker.role === "admin" ? "Admin" : "Staff"}
+                            </Badge>
+
+                            <select
+                              value={worker.role}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => handleRoleChange(worker.userId, e.target.value)}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            >
+                              <option value="admin">Admin</option>
+                              <option value="staff">Staff</option>
+                            </select>
+                          </div>
+
+                          {/* GREEN VERIFIED BADGE - Separate container so select doesn't block it */}
+                          {isUserVerified && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
+                              <CheckCircle2 size={12} className="text-emerald-700" /> Verified
+                            </span>
+                          )}
+
+                        </div>
+                      </TableCell>
+
+                      {/* Danger administrative execution drop triggers */}
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteUser(worker.userId);
+                          }}
+                          className="h-7 text-red-600 hover:text-red-700 hover:bg-red-50 font-medium px-2.5 rounded-lg text-xs cursor-pointer gap-1"
                         >
-                          {worker.role === "admin" ? "Admin" : "Staff"}
-                        </Badge>
+                          <UserX size={13} />
+                          Delete Account
+                        </Button>
+                      </TableCell>
 
-                        {/* Native structural custom select element designed inside clean row boundaries */}
-                        <select
-                          value={worker.role}
-                          onClick={(e) => e.stopPropagation()}
-
-                          onChange={(e) => handleRoleChange(worker.userId, e.target.value)}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        >
-                          <option value="admin">Admin</option>
-                          <option value="staff">Staff</option>
-                        </select>
-                      </div>
-                    </TableCell>
-
-                    {/* Danger administrative execution drop triggers */}
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteUser(worker.userId);
-                        }}
-                        className="h-7 text-red-600 hover:text-red-700 hover:bg-red-50 font-medium px-2.5 rounded-lg text-xs cursor-pointer gap-1"
-                      >
-                        <UserX size={13} />
-                        Delete Account
-                      </Button>
-                    </TableCell>
-
-                  </TableRow>
-                ))}
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
 

@@ -1,10 +1,11 @@
 // app/api/users/route.js
 import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
+import { sendVerificationEmail } from '@/utils/resend/resend'
 
 // Security firewall check using the standard cookie-aware user client
 async function verifyAdminStatus(supabaseAdmin) {
-  const supabaseUser = createClient()
+  const supabaseUser = await createClient()
 
   const { data: { user }, error: authError } = await supabaseUser.auth.getUser()
 
@@ -18,7 +19,6 @@ async function verifyAdminStatus(supabaseAdmin) {
 
   return mapping?.roles?.name === 'admin'
 }
-
 
 // GET ALL USERS (Admin Only)
 export async function GET() {
@@ -67,7 +67,8 @@ export async function GET() {
           user.user_metadata?.full_name ||
           user.user_metadata?.name ||
           'No Name Set',
-        role: match?.roles?.name || 'staff'
+        role: match?.roles?.name || 'staff',
+        isVerified: Boolean(user.email_confirmed_at)
       }
     })
 
@@ -80,7 +81,6 @@ export async function GET() {
     )
   }
 }
-
 
 // CREATE A BRAND NEW USER AND ASSIGN THEIR SYSTEM ROLE (Admin Only)
 export async function POST(request) {
@@ -126,27 +126,47 @@ export async function POST(request) {
       )
     }
 
-    // Create the user in Supabase Auth
-    const { data: authData, error: createError } =
-      await supabaseAdmin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: {
-          full_name: name
-        }
-      })
+    // 1. Create the unverified user (email_confirm: false keeps email_confirmed_at null)
+    const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: false,
+      user_metadata: { full_name: name }
+    })
 
-    if (createError || !authData?.user) {
-      return NextResponse.json(
-        {
-          error: createError?.message || 'Failed to create user.'
-        },
-        { status: 400 }
-      )
+    if (createError) throw createError
+
+    // 2. Generate the verification link pointing to the password reset endpoint
+    // Inside app/api/users/route.js
+
+    const redirectUrl = process.env.NEXT_PUBLIC_SITE_URL
+      ? `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback?next=/reset-password`
+      : 'http://localhost:3000/api/auth/callback?next=/reset-password'
+
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'signup',
+      email: email,
+      options: {
+        redirectTo: redirectUrl
+      }
+    })
+
+    if (linkError) {
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+      return NextResponse.json({ error: linkError.message }, { status: 500 })
     }
 
-    // Get the selected role
+    // 3. Dispatch your custom service function with generated action link
+    try {
+      const verificationUrl = linkData.properties.action_link
+      await sendVerificationEmail(email, name, verificationUrl)
+    } catch (emailError) {
+      // Safe rollback if email dispatch fails
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+      return NextResponse.json({ error: `Email failed to send: ${emailError.message}` }, { status: 500 })
+    }
+
+    // 4. Get the selected role
     const { data: roleRow, error: roleError } = await supabaseAdmin
       .from('roles')
       .select('id')
@@ -154,16 +174,14 @@ export async function POST(request) {
       .single()
 
     if (roleError || !roleRow) {
-      // Delete the auth user since role assignment failed
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
-
       return NextResponse.json(
         { error: 'Role not found.' },
         { status: 400 }
       )
     }
 
-    // Assign the role
+    // 5. Assign the role
     const { error: insertError } = await supabaseAdmin
       .from('user_roles')
       .insert({
@@ -172,9 +190,7 @@ export async function POST(request) {
       })
 
     if (insertError) {
-      // Delete the auth user since role assignment failed
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
-
       return NextResponse.json(
         { error: insertError.message },
         { status: 400 }
@@ -188,12 +204,11 @@ export async function POST(request) {
 
   } catch (error) {
     return NextResponse.json(
-      { error: 'Server processing error.' },
+      { error: error.message || 'Server processing error.' },
       { status: 500 }
     )
   }
 }
-
 
 // DELETE USER COMPLETELY (Admin Only)
 export async function DELETE(request) {
