@@ -34,10 +34,11 @@ export async function proxy(request) {
 
     // 🔒 GUARD 1: LIMBO HANDLING (User has a session but hasn't updated credentials)
     if (user && mustChangePassword) {
-        const isAllowedResetRoute = 
-            currentPath === "/reset-password" || 
+        const isAllowedResetRoute =
+            currentPath === "/reset-password" ||
             currentPath === "/api/reset-password" ||
-            currentPath === "/api/signout"
+            currentPath === "/api/signout" ||
+            currentPath === "/api/users/me"
 
         // If they try to leave public areas/forms and attempt to view full internal protected app pages:
         if (!isPublicRoute && !isAllowedResetRoute) {
@@ -50,7 +51,7 @@ export async function proxy(request) {
 
             // Route back safely to password reset view, clearing URL parameters
             const cleanResetUrl = new URL('/reset-password', request.url)
-            cleanResetUrl.search = '' 
+            cleanResetUrl.search = ''
             return NextResponse.redirect(cleanResetUrl)
         }
 
@@ -71,7 +72,7 @@ export async function proxy(request) {
     // Fully authenticated users who do not need a password change should not view the login screen
     if (user && !mustChangePassword && currentPath === '/login') {
         const cleanHomeUrl = new URL('/', request.url)
-        cleanHomeUrl.search = '' 
+        cleanHomeUrl.search = ''
         return NextResponse.redirect(cleanHomeUrl)
     }
 
