@@ -55,7 +55,6 @@ export default function TopNavigation() {
 
 
         if (response.ok) {
-          const resBody = await response.json();
           setIsLoggedIn(true);
 
           const passwordFlag = Boolean(
