@@ -12,7 +12,10 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     // 2. Query user_roles -> roles join tables
@@ -31,12 +34,11 @@ export async function GET() {
       console.error("Error fetching user role:", roleError);
     }
 
-    // Extract role name (e.g. 'admin' or 'staff') or fallback to 'user'
-    // Handles single object return or nested array from relational query
+    // Handle single object or array relation response
     const roleObj = Array.isArray(userRolesData?.roles)
       ? userRolesData?.roles[0]
       : userRolesData?.roles;
-      
+
     const userRole = roleObj?.name || "user";
 
     return NextResponse.json(
@@ -44,21 +46,33 @@ export async function GET() {
         data: {
           userId: user.id,
           email: user.email,
-          name: user.user_metadata?.full_name || user.user_metadata?.name || "No Name Set",
+
+          name:
+            user.user_metadata?.full_name ||
+            user.user_metadata?.name ||
+            "No Name Set",
+
           role: userRole,
+
           isVerified: user.email_confirmed_at ? true : false,
+
+          // Password reset limbo flag
+          must_change_password:
+            user.user_metadata?.must_change_password || false,
         },
       },
       { status: 200 }
     );
   } catch (error) {
     console.error("GET /api/users/me error:", error);
+
     return NextResponse.json(
       { error: "Failed to fetch profile details." },
       { status: 500 }
     );
   }
 }
+
 
 export async function PATCH(request: Request) {
   try {
@@ -67,10 +81,13 @@ export async function PATCH(request: Request) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+       } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     const body = await request.json().catch(() => ({}));
@@ -93,9 +110,13 @@ export async function PATCH(request: Request) {
     }
 
     // Update name in Supabase user metadata
-    const { error: updateAuthError } = await supabase.auth.updateUser({
-      data: { full_name: trimmedName, name: trimmedName },
-    });
+    const { error: updateAuthError } =
+      await supabase.auth.updateUser({
+        data: {
+          full_name: trimmedName,
+          name: trimmedName,
+        },
+      });
 
     if (updateAuthError) {
       return NextResponse.json(
@@ -105,11 +126,18 @@ export async function PATCH(request: Request) {
     }
 
     return NextResponse.json(
-      { message: "Name updated successfully.", data: { name: trimmedName } },
+      {
+        message: "Name updated successfully.",
+        data: {
+          name: trimmedName,
+        },
+      },
       { status: 200 }
     );
+
   } catch (error) {
     console.error("PATCH /api/users/me error:", error);
+
     return NextResponse.json(
       { error: "Failed to update profile name." },
       { status: 500 }
