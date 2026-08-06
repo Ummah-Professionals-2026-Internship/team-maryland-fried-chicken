@@ -84,6 +84,8 @@ Permissions include:
 
 After logging in, the navigation bar will display the features available for your role.
 
+![Login screenshot](image.png)
+
 ---
 
 # 4. Dashboard
