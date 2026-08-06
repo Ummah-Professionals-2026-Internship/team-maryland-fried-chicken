@@ -19,7 +19,7 @@ export function FormSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl bg-white p-10 ring-1 ring-slate-200">
+    <section className="rounded-2xl bg-white p-5 ring-1 ring-slate-200 sm:p-8">
       <div className="mb-5 flex items-center gap-3 border-b border-slate-100 pb-3">
         <span className="flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold text-white" style={{ backgroundColor: BRAND }}>
           {step}

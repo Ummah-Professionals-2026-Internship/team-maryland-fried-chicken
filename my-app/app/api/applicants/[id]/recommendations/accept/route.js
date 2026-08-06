@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { requireAdminOrStaff } from "@/lib/requireStaffRole";
 import {
   archiveActiveMatchForReplacement,
   MatchReplacementError,
@@ -8,6 +8,12 @@ import {
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const ACTIVE_FOLLOW_UP_PHASES = new Set([
+  "1 Week Follow-up",
+  "2 Month Follow-up",
+  "4 Month Follow-up",
+]);
 
 async function restoreRecommendation(
   supabase,
@@ -63,11 +69,22 @@ export async function POST(request, { params }) {
     );
   }
 
-  const supabase = await createClient();
+  const authorization = await requireAdminOrStaff();
+
+  if (authorization.error) {
+    return NextResponse.json(
+      { error: authorization.error },
+      { status: authorization.status },
+    );
+  }
+
+  const supabase = authorization.admin;
 
   const { data: applicant, error: applicantError } = await supabase
     .from("applicants")
-    .select("id, status, follow_up_outcome")
+    .select(
+      "id, status, follow_up_phase, follow_up_outcome",
+    )
     .eq("id", applicantId)
     .maybeSingle();
 
@@ -273,8 +290,14 @@ export async function POST(request, { params }) {
     );
   }
 
+  const nextApplicantStatus =
+    applicant.status === "Follow Up" ||
+    ACTIVE_FOLLOW_UP_PHASES.has(applicant.follow_up_phase)
+      ? "Follow Up"
+      : "Matched";
+
   const applicantUpdates = {
-    status: "Matched",
+    status: nextApplicantStatus,
   };
 
   if (archivedMatch) {
@@ -316,7 +339,7 @@ export async function POST(request, { params }) {
       recommendation: acceptedRecommendation,
       match,
       archivedMatchId: archivedMatch?.matchId ?? null,
-      applicantStatus: "Matched",
+      applicantStatus: nextApplicantStatus,
       followUpOutcome: archivedMatch
         ? "Awaiting Follow-up"
         : applicant.follow_up_outcome,

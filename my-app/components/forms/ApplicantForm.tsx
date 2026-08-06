@@ -82,7 +82,7 @@ export default function ApplicantForm() {
   const [submitted, setSubmitted] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
 
   const set = <K extends keyof ApplicantFormState>(
     key: K,
@@ -128,16 +128,26 @@ export default function ApplicantForm() {
         : form.referralSource;
 
     try {
+      const submission = new FormData();
+      const { services, ...textFields } = form;
+
+      Object.entries(textFields).forEach(([key, value]) => {
+        submission.append(key, value);
+      });
+
+      services.forEach((service) => {
+        submission.append("services", service);
+      });
+
+      submission.set("source", finalSource || "");
+
+      if (resume) {
+        submission.set("resume", resume);
+      }
+
       const response = await fetch("/api/applicants", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...form,
-          source: finalSource || null,
-          resumeName: resume?.name ?? null,
-        }),
+        body: submission,
       });
 
       const result = (await response.json().catch(() => ({}))) as {
@@ -347,25 +357,44 @@ export default function ApplicantForm() {
         </FieldGrid>
 
         <Field label="Resume" className="mt-5">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="flex w-full flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center transition-colors hover:border-[#2F7FA8] hover:bg-white"
+          <label
+            htmlFor="applicantResume"
+            className="flex w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center transition-colors hover:border-[#2F7FA8] hover:bg-white"
           >
             <Upload className="h-5 w-5 text-slate-400" />
+
             <span className="text-sm font-medium text-slate-700">
-              {resume ? resume.name : "Click to upload your resume"}
+              {resume
+                ? `${resume.name} selected`
+                : "Click to upload your resume"}
             </span>
-            <span className="text-xs text-[#2F7FA8]">
-              PDF, DOC, or DOCX — max {MAX_RESUME_MB} MB
+
+            <span
+              className={
+                resume
+                  ? "text-xs font-medium text-emerald-700"
+                  : "text-xs text-[#2F7FA8]"
+              }
+            >
+              {resume
+                ? "Resume selected successfully"
+                : `PDF, DOC, or DOCX — max ${MAX_RESUME_MB} MB`}
             </span>
-          </button>
+          </label>
+
           <input
-            ref={fileInputRef}
+            id="applicantResume"
+            name="resume"
             type="file"
-            accept=".pdf,.doc,.docx"
-            className="hidden"
-            onChange={(e) => onFile(e.target.files?.[0])}
+            accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            className="sr-only"
+            onChange={(event) => {
+              const selectedFile = event.currentTarget.files?.[0];
+
+              if (selectedFile) {
+                onFile(selectedFile);
+              }
+            }}
           />
         </Field>
       </FormSection>
@@ -431,14 +460,14 @@ export default function ApplicantForm() {
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-slate-400">
           All fields marked <span className="text-red-500">*</span> are required
         </p>
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           style={{ backgroundColor: "#2F7FA8" }}
         >
           {isSubmitting ? "Submitting..." : "Submit Application"}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { requireAdminOrStaff } from "@/lib/requireStaffRole";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -116,7 +117,17 @@ export async function PATCH(request, { params }) {
     );
   }
 
-  const supabase = createClient();
+  const authorization = await requireAdminOrStaff();
+
+  if (authorization.error) {
+    return NextResponse.json(
+      { error: authorization.error },
+      { status: authorization.status },
+    );
+  }
+
+  const supabase = authorization.admin;
+
   const { data: applicant, error: applicantError } =
     await findApplicant(supabase, applicantId);
 

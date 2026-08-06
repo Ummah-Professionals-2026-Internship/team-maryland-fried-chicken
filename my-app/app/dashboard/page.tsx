@@ -93,7 +93,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <MainLayout>
-        <div className="flex items-center justify-center min-h-[300px] text-muted-foreground text-sm">
+        <div className="flex items-center justify-center min-h-[300px] text-slate-600 text-sm">
           Loading metrics...
         </div>
       </MainLayout>
@@ -104,10 +104,10 @@ export default function Dashboard() {
     <MainLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-foreground" style={{ fontSize: "1.375rem", fontWeight: 700 }}>
+          <h1 className="text-zinc-900" style={{ fontSize: "1.375rem", fontWeight: 700 }}>
             Welcome back, {userName}
           </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
+          <p className="text-slate-600 text-sm mt-0.5">
             Here is an overview of the matching program.
           </p>
         </div>
@@ -122,8 +122,8 @@ export default function Dashboard() {
                   <div className={`w-8 h-8 md:w-9 md:h-9 rounded-lg ${stat.iconBg} flex items-center justify-center mb-3`}>
                     <Icon size={17} className={stat.iconColor} />
                   </div>
-                  <p className="text-muted-foreground text-xs">{stat.label}</p>
-                  <p className="text-foreground mt-0.5" style={{ fontSize: "1.625rem", fontWeight: 700, lineHeight: 1 }}>
+                  <p className="text-slate-600 text-xs">{stat.label}</p>
+                  <p className="text-zinc-900 mt-0.5" style={{ fontSize: "1.625rem", fontWeight: 700, lineHeight: 1 }}>
                     {stat.value}
                   </p>
                 </CardContent>
@@ -136,7 +136,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
           {/* Quick links & Match Rate */}
           <div className="md:col-span-1 space-y-4">
-            <h2 className="text-foreground text-sm" style={{ fontWeight: 600 }}>Quick Navigation</h2>
+            <h2 className="text-zinc-900 text-sm" style={{ fontWeight: 600 }}>Quick Navigation</h2>
 
             <button
               onClick={() => router.push("/applicants")}
@@ -148,11 +148,11 @@ export default function Dashboard() {
                     <Users size={17} className="text-primary" />
                   </div>
                   <div>
-                    <p className="text-foreground text-sm" style={{ fontWeight: 500 }}>Applicant Submissions</p>
-                    <p className="text-muted-foreground text-xs">{awaitingCount} awaiting match</p>
+                    <p className="text-zinc-900 text-sm" style={{ fontWeight: 500 }}>Applicant Submissions</p>
+                    <p className="text-slate-600 text-xs">{awaitingCount} awaiting match</p>
                   </div>
                 </div>
-                <ArrowRight size={15} className="text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                <ArrowRight size={15} className="text-slate-600 group-hover:text-primary transition-colors shrink-0" />
               </div>
             </button>
 
@@ -166,25 +166,25 @@ export default function Dashboard() {
                     <BookOpen size={17} className="text-primary" />
                   </div>
                   <div>
-                    <p className="text-foreground text-sm" style={{ fontWeight: 500 }}>Advisor Directory</p>
-                    <p className="text-muted-foreground text-xs">{availableAdvisors} advisors available</p>
+                    <p className="text-zinc-900 text-sm" style={{ fontWeight: 500 }}>Advisor Directory</p>
+                    <p className="text-slate-600 text-xs">{availableAdvisors} advisors available</p>
                   </div>
                 </div>
-                <ArrowRight size={15} className="text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                <ArrowRight size={15} className="text-slate-600 group-hover:text-primary transition-colors shrink-0" />
               </div>
             </button>
 
             {/* Match Rate Card */}
             <Card>
               <CardContent>
-                <p className="text-muted-foreground text-xs mb-2">Completion Rate</p>
-                <p className="text-foreground text-2xl" style={{ fontWeight: 700 }}>
+                <p className="text-slate-600 text-xs mb-2">Completion Rate</p>
+                <p className="text-zinc-900 text-2xl" style={{ fontWeight: 700 }}>
                   {matchRate}%
                 </p>
                 <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
                   <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${matchRate}%` }} />
                 </div>
-                <p className="text-muted-foreground text-xs mt-1.5">{matchedCount} of {totalCount} applicants matched</p>
+                <p className="text-slate-600 text-xs mt-1.5">{matchedCount} of {totalCount} applicants matched</p>
               </CardContent>
             </Card>
           </div>
@@ -197,7 +197,7 @@ export default function Dashboard() {
                 <button
                   onClick={() => router.push("/applicants")}
                   className="text-xs hover:text-primary transition-colors cursor-pointer"
-                  style={{ color: "#007CA6" }}
+                  style={{ color: "#2F7FA8" }}
                 >
                   View all →
                 </button>
@@ -214,6 +214,7 @@ export default function Dashboard() {
             </div>
 
             <CardContent>
+              <div className="w-full overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -226,7 +227,7 @@ export default function Dashboard() {
                 <TableBody>
                   {filtered.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
+                      <TableCell colSpan={4} className="text-center text-slate-600 py-6">
                         No submissions found.
                       </TableCell>
                     </TableRow>
@@ -252,6 +253,7 @@ export default function Dashboard() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </div>

@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Check, Pencil, X } from "lucide-react";
+import { Check, Pencil, Trash2, X } from "lucide-react";
 import MainLayout from "@/layouts/MainLayout";
+import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import { type Advisor } from "@/data/advisors";
 import { formatPhone } from "@/lib/formatPhone";
 
@@ -37,6 +38,20 @@ function getReliabilityStyles(level: string) {
   }
 
   return "bg-red-50 text-red-700 border-red-200";
+}
+
+// Monthly capacity bar color: 0–49% green, 50–99% yellow, 100% red.
+function getCapacityBarColor(percent: number) {
+  if (percent >= 100) return "bg-red-500";
+  if (percent >= 50) return "bg-amber-500";
+  return "bg-emerald-500";
+}
+
+// Availability badge color: Available green, Unavailable red.
+function getAvailabilityStyles(availability: string) {
+  return availability === "Available"
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    : "border-red-200 bg-red-50 text-red-700";
 }
 
 function InfoSection({
@@ -180,6 +195,7 @@ function mapAdvisor(raw: Record<string, unknown>): Advisor {
     // profile always showed 0 — the recommendation cards use `currentAssignments`.
     monthlyCapacityUsed: Number(raw.currentAssignments ?? raw.monthlyCapacityUsed ?? 0),
     monthlyCapacityTotal: Number(raw.max_meetings_per_month ?? raw.monthlyCapacityTotal ?? 0),
+    email: String(raw.email ?? ""),
     phone: String(raw.phone_number ?? raw.phone ?? ""),
     linkedinUrl: String(raw.linkedin_url ?? raw.linkedinUrl ?? ""),
     lastEvent: String(raw.lastEvent ?? "—"),
@@ -210,6 +226,7 @@ function mapAdvisor(raw: Record<string, unknown>): Advisor {
 
 export default function AdvisorProfilePage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [advisor, setAdvisor] = useState<Advisor | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -221,6 +238,10 @@ export default function AdvisorProfilePage() {
   const [draftAvailability, setDraftAvailability] = useState<string>("");
   const [draftReliability, setDraftReliability] = useState<string>("");
   const [draftIndustry, setDraftIndustry] = useState<string>("");
+  const [deleteAdvisorOpen, setDeleteAdvisorOpen] = useState(false);
+  const [isDeletingAdvisor, setIsDeletingAdvisor] = useState(false);
+  const [advisorDeleteError, setAdvisorDeleteError] =
+    useState<string | null>(null);
 
   function handleStartEdit() {
     if (!advisor) return;
@@ -276,6 +297,37 @@ export default function AdvisorProfilePage() {
       setEditError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setSavingEdit(false);
+    }
+  }
+
+  async function handleDeleteAdvisor() {
+    setIsDeletingAdvisor(true);
+    setAdvisorDeleteError(null);
+
+    try {
+      const response = await fetch(`/api/advisors/${id}`, {
+        method: "DELETE",
+      });
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          body.error ?? `Server error: ${response.status}`,
+        );
+      }
+
+      setDeleteAdvisorOpen(false);
+      router.push("/advisors");
+      router.refresh();
+    } catch (err) {
+      setAdvisorDeleteError(
+        err instanceof Error
+          ? err.message
+          : "Failed to delete advisor.",
+      );
+    } finally {
+      setIsDeletingAdvisor(false);
     }
   }
 
@@ -399,25 +451,49 @@ export default function AdvisorProfilePage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h1 className="text-lg font-bold text-zinc-900">{advisor.name}</h1>
-                      <p className="mt-0.5 text-sm text-slate-500">
+                      <p className="mt-0.5 text-sm text-slate-600">
                         {advisor.jobTitle} · {advisor.company}
                       </p>
+                      {advisor.signUpDate && (
+                        <p className="mt-1 text-xs text-slate-500">
+                          Member since {advisor.signUpDate}
+                        </p>
+                      )}
                     </div>
 
-                    {!isEditing && (
+                    <div className="flex shrink-0 items-center gap-2">
+                      {!isEditing && (
+                        <button
+                          type="button"
+                          onClick={handleStartEdit}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Edit
+                        </button>
+                      )}
+
                       <button
-                        onClick={handleStartEdit}
-                        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        type="button"
+                        onClick={() => {
+                          setAdvisorDeleteError(null);
+                          setDeleteAdvisorOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
                       >
-                        <Pencil className="h-3.5 w-3.5" />
-                        Edit
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
                       </button>
-                    )}
+                    </div>
                   </div>
 
                   {!isEditing ? (
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${getAvailabilityStyles(
+                          advisor.availability
+                        )}`}
+                      >
                         <CheckIcon />
                         {advisor.availability}
                       </span>
@@ -510,6 +586,17 @@ export default function AdvisorProfilePage() {
               </div>
             </div>
 
+            <ConfirmationDialog
+              open={deleteAdvisorOpen}
+              onOpenChange={setDeleteAdvisorOpen}
+              title="Delete advisor?"
+              description={`This will permanently delete ${advisor.name} and remove their related recommendations and matches. This action cannot be undone.`}
+              confirmLabel="Delete Advisor"
+              isLoading={isDeletingAdvisor}
+              error={advisorDeleteError}
+              onConfirm={handleDeleteAdvisor}
+            />
+
             <div className="rounded-xl border border-slate-200 bg-white p-5">
               <div className="mb-2 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -529,7 +616,7 @@ export default function AdvisorProfilePage() {
 
               <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                 <div
-                  className="h-full rounded-full bg-emerald-500 transition-all"
+                  className={`h-full rounded-full transition-all ${getCapacityBarColor(capacityPercent)}`}
                   style={{ width: `${capacityPercent}%` }}
                 />
               </div>
@@ -540,11 +627,19 @@ export default function AdvisorProfilePage() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <InfoSection title="Activity">
-                <InfoRow label="Sign Up Date">{advisor.signUpDate}</InfoRow>
-              </InfoSection>
-
               <InfoSection title="Contact">
+                <InfoRow label="Email">
+                  {advisor.email?.trim() ? (
+                    <a
+                      href={`mailto:${advisor.email}`}
+                      className="break-all text-[#007CA6] hover:underline"
+                    >
+                      {advisor.email}
+                    </a>
+                  ) : (
+                    <NotProvided />
+                  )}
+                </InfoRow>
                 <InfoRow label="Phone Number">
                   {advisor.phone?.trim() ? (
                     formatPhone(advisor.phone)
