@@ -1,13 +1,11 @@
-// app/api/users/route.js
 import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
+import { sendVerificationEmail } from '@/utils/resend/resend'
 
 // Security firewall check using the standard cookie-aware user client
 async function verifyAdminStatus(supabaseAdmin) {
-  const supabaseUser = createClient()
-
+  const supabaseUser = await createClient()
   const { data: { user }, error: authError } = await supabaseUser.auth.getUser()
-
   if (authError || !user) return false
 
   const { data: mapping } = await supabaseAdmin
@@ -19,13 +17,12 @@ async function verifyAdminStatus(supabaseAdmin) {
   return mapping?.roles?.name === 'admin'
 }
 
-
 // GET ALL USERS (Admin Only)
 export async function GET() {
   try {
     const supabaseAdmin = createAdminClient()
-
     const isAdmin = await verifyAdminStatus(supabaseAdmin)
+
     if (!isAdmin) {
       return NextResponse.json(
         { error: 'Forbidden. Admins only.' },
@@ -47,9 +44,7 @@ export async function GET() {
       )
     }
 
-    const { data: { users: authUsers }, error: authError } =
-      await supabaseAdmin.auth.admin.listUsers()
-
+    const { data: { users: authUsers }, error: authError } = await supabaseAdmin.auth.admin.listUsers()
     if (authError) {
       return NextResponse.json(
         { error: authError.message },
@@ -59,15 +54,12 @@ export async function GET() {
 
     const mappings = authUsers.map(user => {
       const match = roleData.find(row => row.user_id === user.id)
-
       return {
         userId: user.id,
         email: user.email,
-        name:
-          user.user_metadata?.full_name ||
-          user.user_metadata?.name ||
-          'No Name Set',
-        role: match?.roles?.name || 'staff'
+        name: user.user_metadata?.full_name || user.user_metadata?.name || 'No Name Set',
+        role: match?.roles?.name || 'staff',
+        isVerified: Boolean(user.email_confirmed_at)
       }
     })
 
@@ -80,7 +72,6 @@ export async function GET() {
     )
   }
 }
-
 
 // CREATE A BRAND NEW USER AND ASSIGN THEIR SYSTEM ROLE (Admin Only)
 export async function POST(request) {
@@ -105,9 +96,7 @@ export async function POST(request) {
     }
 
     // Check if an account with this email already exists
-    const { data: usersData, error: usersError } =
-      await supabaseAdmin.auth.admin.listUsers()
-
+    const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers()
     if (usersError) {
       return NextResponse.json(
         { error: usersError.message },
@@ -118,7 +107,6 @@ export async function POST(request) {
     const emailExists = usersData.users.some(
       user => user.email?.toLowerCase() === email.toLowerCase()
     )
-
     if (emailExists) {
       return NextResponse.json(
         { error: 'An account with this email already exists.' },
@@ -126,27 +114,56 @@ export async function POST(request) {
       )
     }
 
-    // Create the user in Supabase Auth
-    const { data: authData, error: createError } =
-      await supabaseAdmin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: {
-          full_name: name
-        }
-      })
+    // 1. Create the unverified user (email_confirm: false keeps email_confirmed_at null)
+    const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: false,
+      user_metadata: { full_name: name }
+    })
+    if (createError) throw createError
 
-    if (createError || !authData?.user) {
-      return NextResponse.json(
-        {
-          error: createError?.message || 'Failed to create user.'
-        },
-        { status: 400 }
-      )
+    // ✨ VERCEL DYNAMIC ENVIRONMENT URL RESOLVER:
+    // Priority 1: Manual Production/Staging Env variable
+    // Priority 2: Vercel automated system deployment domain (manually prefixing https:// host requirement)
+    // Priority 3: Localhost fallback
+    const baseUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : 'http://localhost:3000';
+
+
+    // 2. Generate the verification link pointing to the password reset endpoint fallback target
+    const redirectUrl = `${baseUrl}/reset-password`
+
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'signup',
+      email: email,
+      password: password,
+      options: { redirectTo: redirectUrl }
+    })
+
+    if (linkError) {
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+      console.error('Error generating verification link:', linkError)
+      return NextResponse.json({ error: linkError.message }, { status: 500 })
     }
 
-    // Get the selected role
+    // 3. Dispatch your custom service function with completely dynamic link targets
+    try {
+      const tokenKey = linkData.properties.hashed_token
+
+      // The email button link is now generated completely dynamically relative to the environment platform host
+      const browserVerificationUrl = `${baseUrl}/verify-account?token=${tokenKey}&email=${encodeURIComponent(email)}`
+
+      await sendVerificationEmail(email, name, browserVerificationUrl)
+    } catch (emailError) {
+      // Safe rollback if email dispatch fails
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+      console.error('Error sending verification email:', emailError)
+      return NextResponse.json({ error: `Email failed to send: ${emailError.message}` }, { status: 500 })
+    }
+
+    // 4. Get the selected role
     const { data: roleRow, error: roleError } = await supabaseAdmin
       .from('roles')
       .select('id')
@@ -154,52 +171,40 @@ export async function POST(request) {
       .single()
 
     if (roleError || !roleRow) {
-      // Delete the auth user since role assignment failed
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
-
       return NextResponse.json(
         { error: 'Role not found.' },
         { status: 400 }
       )
     }
 
-    // Assign the role
+    // 5. Assign the role
     const { error: insertError } = await supabaseAdmin
       .from('user_roles')
-      .insert({
-        user_id: authData.user.id,
-        role_id: roleRow.id
-      })
+      .insert({ user_id: authData.user.id, role_id: roleRow.id })
 
     if (insertError) {
-      // Delete the auth user since role assignment failed
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
-
       return NextResponse.json(
         { error: insertError.message },
         { status: 400 }
       )
     }
 
-    return NextResponse.json({
-      success: true,
-      message: `Account created successfully for ${email}`
-    })
+    return NextResponse.json({ success: true, message: `Account created successfully for ${email}` })
 
   } catch (error) {
     return NextResponse.json(
-      { error: 'Server processing error.' },
+      { error: error.message || 'Server processing error.' },
       { status: 500 }
     )
   }
 }
 
-
 // DELETE USER COMPLETELY (Admin Only)
 export async function DELETE(request) {
   try {
     const supabaseAdmin = createAdminClient()
-
     const isAuthorized = await verifyAdminStatus(supabaseAdmin)
 
     if (!isAuthorized) {
@@ -210,7 +215,6 @@ export async function DELETE(request) {
     }
 
     const { userId } = await request.json()
-
     if (!userId) {
       return NextResponse.json(
         { error: 'Missing target userId' },
@@ -230,9 +234,7 @@ export async function DELETE(request) {
       )
     }
 
-    const { error: deleteError } =
-      await supabaseAdmin.auth.admin.deleteUser(userId)
-
+    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId)
     if (deleteError) {
       return NextResponse.json(
         { error: deleteError.message },
@@ -240,10 +242,7 @@ export async function DELETE(request) {
       )
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Account completely purged'
-    })
+    return NextResponse.json({ success: true, message: 'Account completely purged' })
 
   } catch {
     return NextResponse.json(

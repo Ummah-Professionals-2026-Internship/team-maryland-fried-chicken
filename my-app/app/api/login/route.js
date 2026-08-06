@@ -11,7 +11,7 @@ export async function POST(request) {
 
   try {
 
-    
+
     // 2. Read the email and password sent over by the frontend fetch request
     const { email, password } = await request.json()
     // 3. If either is missing, send back a 400 error message
@@ -30,8 +30,12 @@ export async function POST(request) {
 
     // 5. If Supabase says "No match!", send back a 400 error message
     if (error) {
-      return NextResponse.json({ error: error.message + "112" }, { status: 400 })
+      if (error.message.includes("Email not confirmed")) {
+        return NextResponse.json({ error: 'Your email is not verified yet. Please check your inbox and click the activation link before logging in.' }, { status: 400 })
+      }
+      return NextResponse.json({ error: 'Incorrect email or password.' }, { status: 400 })
     }
+
 
     // 6. If successful, return a clean message. 
     // (The connection tool handles saving the session cookie to the browser automatically!)
