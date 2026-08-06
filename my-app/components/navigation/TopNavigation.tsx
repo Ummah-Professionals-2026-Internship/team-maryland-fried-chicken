@@ -97,26 +97,17 @@ export default function TopNavigation() {
     }
   };
 
-  // Main standalone top-level links
-  const getNavItems = (): NavItem[] => {
+  // Nav items prior to the Forms dropdown
+  const getPreFormNavItems = (): NavItem[] => {
     if (!isLoggedIn) {
       return [{ label: "Landing Page", href: "/" }];
     }
 
-    const baselineProtectedItems = [
+    return [
       { label: "Dashboard", href: "/dashboard" },
       { label: "Applicants", href: "/applicants" },
       { label: "Advisors", href: "/advisors" },
     ];
-
-    if (userRole === "admin") {
-      return [
-        ...baselineProtectedItems,
-        { label: "Users", href: "/admin/users" },
-      ];
-    }
-
-    return baselineProtectedItems;
   };
 
   // Options contained inside the Forms dropdown menu
@@ -125,8 +116,9 @@ export default function TopNavigation() {
     { label: "Advisor", href: "/forms/advisors" },
   ];
 
-  const activeNavItems = getNavItems();
+  const preFormNavItems = getPreFormNavItems();
   const isFormsActive = pathname.startsWith("/forms");
+  const isUsersActive = pathname.startsWith("/admin/users");
 
   return (
     <header className="border-b border-slate-200 bg-white">
@@ -156,7 +148,8 @@ export default function TopNavigation() {
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-3">
-          {activeNavItems.map((item) => {
+          {/* Main items before Forms */}
+          {preFormNavItems.map((item) => {
             const isActive =
               pathname === item.href ||
               (item.href !== "/" && pathname.startsWith(`${item.href}/`));
@@ -176,47 +169,63 @@ export default function TopNavigation() {
             );
           })}
 
-          {/* Forms Dropdown Menu */}
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setFormsDropdownOpen(!formsDropdownOpen)}
-              className={`flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-medium transition-colors cursor-pointer ${
-                isFormsActive
+          {/* Forms Dropdown Menu (Only shown when logged in) */}
+          {isLoggedIn && (
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setFormsDropdownOpen(!formsDropdownOpen)}
+                className={`flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                  isFormsActive
+                    ? "bg-[#2F7FA8] text-white"
+                    : "border border-slate-300 bg-white text-slate-900 hover:bg-slate-50"
+                }`}
+              >
+                <span>Forms</span>
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform duration-200 ${
+                    formsDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {formsDropdownOpen && (
+                <div className="absolute left-0 mt-2 w-48 rounded-2xl border border-slate-100 bg-white p-1.5 shadow-lg ring-1 ring-black/5 z-50">
+                  {formItems.map((form) => {
+                    const isFormActive = pathname === form.href;
+                    return (
+                      <Link
+                        key={form.href}
+                        href={form.href}
+                        onClick={() => setFormsDropdownOpen(false)}
+                        className={`block rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+                          isFormActive
+                            ? "bg-[#2F7FA8] text-white"
+                            : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                        }`}
+                      >
+                        {form.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Users Navigation Link (Positioned AFTER Forms for Admins) */}
+          {isLoggedIn && userRole === "admin" && (
+            <Link
+              href="/admin/users"
+              className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${
+                isUsersActive
                   ? "bg-[#2F7FA8] text-white"
                   : "border border-slate-300 bg-white text-slate-900 hover:bg-slate-50"
               }`}
             >
-              <span>Forms</span>
-              <ChevronDown
-                size={16}
-                className={`transition-transform duration-200 ${
-                  formsDropdownOpen ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-
-            {formsDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 rounded-2xl border border-slate-100 bg-white p-1.5 shadow-lg ring-1 ring-black/5 z-50">
-                {formItems.map((form) => {
-                  const isFormActive = pathname === form.href;
-                  return (
-                    <Link
-                      key={form.href}
-                      href={form.href}
-                      onClick={() => setFormsDropdownOpen(false)}
-                      className={`block rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
-                        isFormActive
-                          ? "bg-[#2F7FA8] text-white"
-                          : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-                      }`}
-                    >
-                      {form.label}
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+              Users
+            </Link>
+          )}
 
           {/* User Section / Login Button */}
           {isLoggedIn ? (
@@ -244,7 +253,7 @@ export default function TopNavigation() {
       {/* Mobile Navigation Drawer */}
       {menuOpen && (
         <div className="md:hidden flex flex-col gap-1 px-7 pb-4 border-t border-slate-100 pt-3">
-          {activeNavItems.map((item) => {
+          {preFormNavItems.map((item) => {
             const isActive =
               pathname === item.href ||
               (item.href !== "/" && pathname.startsWith(`${item.href}/`));
@@ -264,29 +273,46 @@ export default function TopNavigation() {
             );
           })}
 
-          {/* Mobile Forms Accordion / Group */}
-          <div className="border-t border-slate-100 my-1 pt-2">
-            <div className="px-4 py-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Forms
+          {/* Mobile Forms Accordion */}
+          {isLoggedIn && (
+            <div className="border-t border-slate-100 my-1 pt-2">
+              <div className="px-4 py-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Forms
+              </div>
+              {formItems.map((form) => {
+                const isFormActive = pathname === form.href;
+                return (
+                  <Link
+                    key={form.href}
+                    href={form.href}
+                    onClick={() => setMenuOpen(false)}
+                    className={`block rounded-lg px-6 py-2 text-sm font-medium ${
+                      isFormActive
+                        ? "bg-[#2F7FA8] text-white"
+                        : "text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {form.label}
+                  </Link>
+                );
+              })}
             </div>
-            {formItems.map((form) => {
-              const isFormActive = pathname === form.href;
-              return (
-                <Link
-                  key={form.href}
-                  href={form.href}
-                  onClick={() => setMenuOpen(false)}
-                  className={`block rounded-lg px-6 py-2 text-sm font-medium ${
-                    isFormActive
-                      ? "bg-[#2F7FA8] text-white"
-                      : "text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  {form.label}
-                </Link>
-              );
-            })}
-          </div>
+          )}
+
+          {/* Mobile Users Link (Placed after Forms) */}
+          {isLoggedIn && userRole === "admin" && (
+            <Link
+              href="/admin/users"
+              onClick={() => setMenuOpen(false)}
+              className={`rounded-lg px-4 py-2 text-sm font-medium ${
+                isUsersActive
+                  ? "bg-[#2F7FA8] text-white"
+                  : "text-slate-900 hover:bg-slate-50"
+              }`}
+            >
+              Users
+            </Link>
+          )}
 
           {/* Mobile Account Options */}
           {isLoggedIn ? (
