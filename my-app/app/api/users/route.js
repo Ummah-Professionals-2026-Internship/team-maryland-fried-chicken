@@ -1,6 +1,6 @@
 import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
-import { sendVerificationEmail } from '@/utils/resend/resend'
+import { sendVerificationEmail, sendCredentialsWelcomeEmail } from '@/utils/resend/resend' // ✨ Imported your new method here
 
 // Security firewall check using the standard cookie-aware user client
 async function verifyAdminStatus(supabaseAdmin) {
@@ -147,16 +147,20 @@ export async function POST(request) {
       return NextResponse.json({ error: linkError.message }, { status: 500 })
     }
 
-    // 3. Dispatch your custom service function with completely dynamic link targets
+    // 3. Dispatch both email updates safely
     try {
       const tokenKey = linkData.properties.hashed_token
       const browserVerificationUrl = `${baseUrl}/verify-account?token=${tokenKey}&email=${encodeURIComponent(email)}`
 
+      // ✉️ Send the temporary credential details first
+      await sendCredentialsWelcomeEmail(email, name, password)
+
+      // ✉️ Send the core verification flow email right after
       await sendVerificationEmail(email, name, browserVerificationUrl)
     } catch (emailError) {
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
-      console.error('Error sending verification email:', emailError)
-      return NextResponse.json({ error: `Email failed to send: ${emailError.message}` }, { status: 500 })
+      console.error('Error sending system notification emails:', emailError)
+      return NextResponse.json({ error: `Email processing failed: ${emailError.message}` }, { status: 500 })
     }
 
     // 4. Get the selected role
