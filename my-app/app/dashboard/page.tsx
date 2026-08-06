@@ -21,8 +21,10 @@ interface Applicant {
 // Matches response structure from /api/dashboard/route.ts
 interface DashboardMetrics {
   totalCount: number;
+  pendingCount: number;
+  activeCount: number;
+  completedCount: number;
   matchedCount: number;
-  awaitingCount: number;
   availableAdvisors: number;
   recentUnmatchedApplicants: Applicant[];
 }
@@ -34,8 +36,10 @@ export default function Dashboard() {
   const [userName, setUserName] = useState<string>("User"); // Fallback default name
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     totalCount: 0,
+    pendingCount: 0,
+    activeCount: 0,
+    completedCount: 0,
     matchedCount: 0,
-    awaitingCount: 0,
     availableAdvisors: 0,
     recentUnmatchedApplicants: [],
   });
@@ -73,21 +77,25 @@ export default function Dashboard() {
     loadDashboardData();
   }, []);
 
-  const { totalCount, matchedCount, awaitingCount, availableAdvisors, recentUnmatchedApplicants } = metrics;
+  const { totalCount, pendingCount, activeCount, completedCount, matchedCount, availableAdvisors, recentUnmatchedApplicants } = metrics;
 
   // Filter table dynamically using input search query
   const filtered = recentUnmatchedApplicants.filter((a) =>
     a.name.toLowerCase().includes(query.toLowerCase())
   );
 
-  // Match rate calculation safely handling divide-by-zero
-  const matchRate = totalCount > 0 ? Math.round((matchedCount / totalCount) * 100) : 0;
+  // Matching rate: (Matched + Follow Up + Closed) / Total Applicants.
+  // activeCount = Matched + Follow Up, completedCount = Closed.
+  const matchingRate =
+    totalCount > 0
+      ? Math.round(((activeCount + completedCount) / totalCount) * 100)
+      : 0;
 
   const stats = [
     { label: "Total Applicants", value: totalCount, icon: Users, iconBg: "bg-blue-100", iconColor: "text-blue-600" },
-    { label: "Awaiting Match", value: awaitingCount, icon: Clock, iconBg: "bg-amber-100", iconColor: "text-amber-600" },
-    { label: "Matched", value: matchedCount, icon: CheckCircle, iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
-    { label: "Active Advisors", value: availableAdvisors, icon: BookOpen, iconBg: "bg-purple-100", iconColor: "text-purple-600" },
+    { label: "Pending Review", value: pendingCount, icon: Clock, iconBg: "bg-amber-100", iconColor: "text-amber-600" },
+    { label: "Active Cases", value: activeCount, icon: BookOpen, iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
+    { label: "Completed Cases", value: completedCount, icon: CheckCircle, iconBg: "bg-purple-100", iconColor: "text-purple-600" },
   ];
 
   if (loading) {
@@ -149,7 +157,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <p className="text-zinc-900 text-sm" style={{ fontWeight: 500 }}>Applicant Submissions</p>
-                    <p className="text-slate-600 text-xs">{awaitingCount} awaiting match</p>
+                    <p className="text-slate-600 text-xs">{pendingCount} awaiting match</p>
                   </div>
                 </div>
                 <ArrowRight size={15} className="text-slate-600 group-hover:text-primary transition-colors shrink-0" />
@@ -174,17 +182,17 @@ export default function Dashboard() {
               </div>
             </button>
 
-            {/* Match Rate Card */}
+            {/* Matching Rate Card */}
             <Card>
               <CardContent>
-                <p className="text-slate-600 text-xs mb-2">Completion Rate</p>
+                <p className="text-slate-600 text-xs mb-2">Matching Rate</p>
                 <p className="text-zinc-900 text-2xl" style={{ fontWeight: 700 }}>
-                  {matchRate}%
+                  {matchingRate}%
                 </p>
                 <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${matchRate}%` }} />
+                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${matchingRate}%` }} />
                 </div>
-                <p className="text-slate-600 text-xs mt-1.5">{matchedCount} of {totalCount} applicants matched</p>
+                <p className="text-slate-600 text-xs mt-1.5">{activeCount + completedCount} of {totalCount} applicants matched</p>
               </CardContent>
             </Card>
           </div>
