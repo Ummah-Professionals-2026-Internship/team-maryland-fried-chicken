@@ -26,6 +26,7 @@ type AdvisorSummary = {
 };
 
 type ManualMatchResult = {
+  applicantStatus: string;
   advisorId: string;
   advisorName: string;
   jobTitle: string;
@@ -110,6 +111,16 @@ export default function ManualMatchModal({
     }
     onOpenChange(nextOpen);
   }
+
+  // Always begin from the advisor search view when the modal opens. The success
+  // path closes the dialog without going through handleOpenChange, so without
+  // this a stale selectedAdvisor would show the confirmation view on reopen.
+  useEffect(() => {
+    if (open) {
+      setSelectedAdvisor(null);
+      setConfirmError(null);
+    }
+  }, [open]);
 
   // Seed the gender filter's options once per open, from the unfiltered eligible list.
   useEffect(() => {
@@ -205,6 +216,9 @@ export default function ManualMatchModal({
       }
 
       onMatched({
+        applicantStatus: String(
+          body.applicantStatus ?? "Matched",
+        ),
         advisorId: selectedAdvisor.advisorId,
         advisorName: selectedAdvisor.advisorName,
         jobTitle: selectedAdvisor.jobTitle,
@@ -217,7 +231,7 @@ export default function ManualMatchModal({
         ),
         maxMonthlyAssignments: selectedAdvisor.maxMonthlyAssignments,
       });
-      onOpenChange(false);
+      handleOpenChange(false);
     } catch (err) {
       setConfirmError(err instanceof Error ? err.message : "Failed to create match.");
     } finally {

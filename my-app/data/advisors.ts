@@ -8,6 +8,7 @@ export type Advisor = {
   field: string;
   company: string;
   location: string;
+  email?: string;
   phone?: string;
   linkedinUrl?: string;
   availability: string;

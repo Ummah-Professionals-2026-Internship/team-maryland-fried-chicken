@@ -51,17 +51,17 @@ function AddNewUserForm() {
     <div className="space-y-6 max-w-sm mx-auto mt-12">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-foreground" style={{ fontSize: "1.375rem", fontWeight: 700 }}>
+          <h1 className="text-zinc-900" style={{ fontSize: "1.375rem", fontWeight: 700 }}>
             Create Platform Account
           </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
+          <p className="text-slate-600 text-sm mt-0.5">
             Provision brand new access credentials.
           </p>
         </div>
         <button
           type="button"
           onClick={() => router.push(callbackUrl)}
-          className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-lg border border-border bg-card cursor-pointer"
+          className="text-slate-600 hover:text-zinc-900 transition-colors p-1.5 rounded-lg border border-border bg-card cursor-pointer"
         >
           <ArrowLeft size={16} />
         </button>
@@ -71,28 +71,28 @@ function AddNewUserForm() {
         <form onSubmit={handleSubmit}>
           <CardContent className="pt-4 pb-2 px-6 space-y-3.5">
             <div className="space-y-0.5">
-              <label className="text-muted-foreground text-xs font-medium">Full Name</label>
+              <label className="text-slate-600 text-xs font-medium">Full Name</label>
               <input type="text" placeholder="Harun Jimcale" value={name} onChange={(e) => setName(e.target.value)} className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors" required />
             </div>
 
             <div className="space-y-0.5">
-              <label className="text-muted-foreground text-xs font-medium">Email Address</label>
+              <label className="text-slate-600 text-xs font-medium">Email Address</label>
               <input type="email" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors" required />
             </div>
 
             <div className="space-y-0.5">
-              <label className="text-muted-foreground text-xs font-medium">Temporary Password</label>
+              <label className="text-slate-600 text-xs font-medium">Temporary Password</label>
               <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors" required />
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-xs font-medium block">Baseline Access Assignment</label>
+              <label className="text-slate-600 text-xs font-medium block">Baseline Access Assignment</label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setRole('staff')}
                   className={`py-2 px-3 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
-                    role === 'staff' ? 'bg-slate-100 text-slate-800 border-slate-300 shadow-sm' : 'bg-card text-muted-foreground border-border hover:bg-muted/30'
+                    role === 'staff' ? 'bg-slate-100 text-slate-800 border-slate-300 shadow-sm' : 'bg-card text-slate-600 border-border hover:bg-muted/30'
                   }`}
                 >
                   STAFF RANK
@@ -101,7 +101,7 @@ function AddNewUserForm() {
                   type="button"
                   onClick={() => setRole('admin')}
                   className={`py-2 px-3 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
-                    role === 'admin' ? 'bg-amber-50 text-amber-800 border-amber-300 shadow-sm' : 'bg-card text-muted-foreground border-border hover:bg-muted/30'
+                    role === 'admin' ? 'bg-amber-50 text-amber-800 border-amber-300 shadow-sm' : 'bg-card text-slate-600 border-border hover:bg-muted/30'
                   }`}
                 >
                   ADMIN RANK
