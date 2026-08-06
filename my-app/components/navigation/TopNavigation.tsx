@@ -5,12 +5,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
-import { Menu, X, User, LogOut, ChevronDown } from "lucide-react";
+import { Menu, X, LogOut, ChevronDown, KeyRound } from "lucide-react";
 import UserNav from "./userNav/UserNav";
 
 type NavItem = {
   label: string;
   href: string;
+  isResetBtn?: boolean; // Tag to identify the special limbo button styling
 };
 
 export default function TopNavigation() {
@@ -19,6 +20,7 @@ export default function TopNavigation() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [formsDropdownOpen, setFormsDropdownOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>("User");
 
@@ -52,6 +54,14 @@ export default function TopNavigation() {
         if (response.ok) {
           const resBody = await response.json();
           setIsLoggedIn(true);
+          
+          // Capture password limbo flag from backend metadata
+          const passwordFlag = Boolean(
+            resBody.data?.user_metadata?.must_change_password || 
+            resBody.data?.must_change_password
+          );
+          setMustChangePassword(passwordFlag);
+
           setUserRole(resBody.data?.role || "staff");
           setUserName(
             resBody.data?.name ||
@@ -61,11 +71,13 @@ export default function TopNavigation() {
           );
         } else {
           setIsLoggedIn(false);
+          setMustChangePassword(false);
           setUserRole(null);
           setUserName("User");
         }
       } catch (err) {
         setIsLoggedIn(false);
+        setMustChangePassword(false);
         setUserRole(null);
         setUserName("User");
       }
@@ -79,6 +91,7 @@ export default function TopNavigation() {
       const response = await fetch("/api/signout", { method: "POST" });
       if (response.ok) {
         setIsLoggedIn(false);
+        setMustChangePassword(false);
         setUserRole(null);
         router.push("/");
       }
@@ -97,12 +110,21 @@ export default function TopNavigation() {
     }
   };
 
-  // Main standalone top-level links
+  // Build top-level links dynamically based on state rulebook
   const getNavItems = (): NavItem[] => {
-    if (!isLoggedIn) {
-      return [{ label: "Landing Page", href: "/" }];
+    // RULE 1 & 2: Logged-Out users OR Users trapped in Limbo
+    if (!isLoggedIn || mustChangePassword) {
+      const baseItems: NavItem[] = [{ label: "Landing Page", href: "/" }];
+      
+      // If they are specifically in password limbo, add the dedicated Reset Password button
+      if (mustChangePassword) {
+        baseItems.push({ label: "Reset Password", href: "/reset-password", isResetBtn: true });
+      }
+      
+      return baseItems;
     }
 
+    // RULE 3: Regular fully authenticated system navigation items
     const baselineProtectedItems = [
       { label: "Dashboard", href: "/dashboard" },
       { label: "Applicants", href: "/applicants" },
@@ -119,7 +141,6 @@ export default function TopNavigation() {
     return baselineProtectedItems;
   };
 
-  // Options contained inside the Forms dropdown menu
   const formItems: NavItem[] = [
     { label: "Applicant", href: "/forms/applicants" },
     { label: "Advisor", href: "/forms/advisors" },
@@ -133,7 +154,7 @@ export default function TopNavigation() {
       <nav className="flex items-center justify-between px-7 py-4">
         {/* Logo */}
         <Link
-          href={isLoggedIn ? "/dashboard" : "/"}
+          href={isLoggedIn && !mustChangePassword ? "/dashboard" : "/"}
           className="flex items-center gap-3"
         >
           <div className="relative h-10 w-10 overflow-hidden rounded-xl">
@@ -148,7 +169,7 @@ export default function TopNavigation() {
           </div>
           <div className="leading-none">
             <div className="text-xl font-bold text-[#2F7FA8]">ummah</div>
-            <div className="text-s tracking-wide text-[#2F7FA8]">
+            <div className="text-sm tracking-wide text-[#2F7FA8]">
               professionals
             </div>
           </div>
@@ -160,6 +181,20 @@ export default function TopNavigation() {
             const isActive =
               pathname === item.href ||
               (item.href !== "/" && pathname.startsWith(`${item.href}/`));
+
+            // Apply distinct visual layout weight if it's the custom Reset Password button for Limbo users
+            if (item.isResetBtn) {
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-medium border border-amber-500 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors"
+                >
+                  <KeyRound size={14} />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            }
 
             return (
               <Link
@@ -176,7 +211,7 @@ export default function TopNavigation() {
             );
           })}
 
-          {/* Forms Dropdown Menu */}
+          {/* Forms Dropdown Menu (Always visible for Form processing) */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setFormsDropdownOpen(!formsDropdownOpen)}
@@ -218,9 +253,13 @@ export default function TopNavigation() {
             )}
           </div>
 
-          {/* User Section / Login Button */}
+          {/* User Section Dropdown OR Login Button Option */}
           {isLoggedIn ? (
-            <UserNav userName={userName} onLogout={handleLogout} />
+            <UserNav 
+              userName={userName} 
+              onLogout={handleLogout} 
+              isForcedReset={mustChangePassword} // 🔑 Locks profile features down if true
+            />
           ) : (
             <button
               onClick={handleLoginRedirect}
@@ -248,6 +287,21 @@ export default function TopNavigation() {
             const isActive =
               pathname === item.href ||
               (item.href !== "/" && pathname.startsWith(`${item.href}/`));
+            
+            if (item.isResetBtn) {
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-2 rounded-lg bg-amber-50 text-amber-800 px-4 py-2 text-sm font-medium border border-amber-200"
+                >
+                  <KeyRound size={16} />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            }
+
             return (
               <Link
                 key={item.href}
@@ -264,7 +318,7 @@ export default function TopNavigation() {
             );
           })}
 
-          {/* Mobile Forms Accordion / Group */}
+          {/* Mobile Forms Accordion Group */}
           <div className="border-t border-slate-100 my-1 pt-2">
             <div className="px-4 py-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
               Forms
@@ -288,20 +342,24 @@ export default function TopNavigation() {
             })}
           </div>
 
-          {/* Mobile Account Options */}
+          {/* Mobile Account Options Context Drawer */}
           {isLoggedIn ? (
             <div className="border-t border-slate-200 mt-1 pt-2 space-y-1">
               <div className="px-4 py-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Account ({userName})
               </div>
-              <Link
-                href="/profile"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-50"
-              >
-                <User size={16} />
-                <span>Profile</span>
-              </Link>
+              
+              {/* Omit routing shortcuts entirely on mobile layouts if caught in password limbo */}
+              {!mustChangePassword && (
+                <Link
+                  href="/profile"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-50"
+                >
+                  <span>Profile</span>
+                </Link>
+              )}
+              
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 w-full text-left rounded-lg px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 cursor-pointer"

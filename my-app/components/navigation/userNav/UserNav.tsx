@@ -8,9 +8,10 @@ import { User, LogOut, ChevronDown } from "lucide-react";
 interface UserNavProps {
   userName: string;
   onLogout: () => void;
+  isForcedReset: boolean; // ✨ Add the missing prop type here
 }
 
-export default function UserNav({ userName, onLogout }: UserNavProps) {
+export default function UserNav({ userName, onLogout, isForcedReset }: UserNavProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -51,14 +52,17 @@ export default function UserNav({ userName, onLogout }: UserNavProps) {
       {/* Dropdown Menu Content */}
       {isOpen && (
         <div className="absolute right-0 mt-2 w-48 rounded-xl bg-white p-1 shadow-lg ring-1 ring-slate-200 z-50">
-          <Link
-            href="/profile"
-            onClick={() => setIsOpen(false)}
-            className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <User size={16} />
-            <span>Profile</span>
-          </Link>
+          {/* 🔒 Strip away the profile portal entirely if the user is in limbo */}
+          {!isForcedReset && (
+            <Link
+              href="/profile"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <User size={16} />
+              <span>Profile</span>
+            </Link>
+          )}
 
           <button
             type="button"

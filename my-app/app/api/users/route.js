@@ -114,23 +114,22 @@ export async function POST(request) {
       )
     }
 
-    // 1. Create the unverified user (email_confirm: false keeps email_confirmed_at null)
+    // 1. Create the unverified user with the password reset flag in user_metadata
     const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: false,
-      user_metadata: { full_name: name }
+      user_metadata: { 
+        full_name: name,
+        must_change_password: true // Added flag here
+      }
     })
     if (createError) throw createError
 
     // ✨ VERCEL DYNAMIC ENVIRONMENT URL RESOLVER:
-    // Priority 1: Manual Production/Staging Env variable
-    // Priority 2: Vercel automated system deployment domain (manually prefixing https:// host requirement)
-    // Priority 3: Localhost fallback
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL
       ? `${process.env.NEXT_PUBLIC_APP_URL}`
       : 'http://localhost:3000';
-
 
     // 2. Generate the verification link pointing to the password reset endpoint fallback target
     const redirectUrl = `${baseUrl}/reset-password`
@@ -151,13 +150,10 @@ export async function POST(request) {
     // 3. Dispatch your custom service function with completely dynamic link targets
     try {
       const tokenKey = linkData.properties.hashed_token
-
-      // The email button link is now generated completely dynamically relative to the environment platform host
       const browserVerificationUrl = `${baseUrl}/verify-account?token=${tokenKey}&email=${encodeURIComponent(email)}`
 
       await sendVerificationEmail(email, name, browserVerificationUrl)
     } catch (emailError) {
-      // Safe rollback if email dispatch fails
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
       console.error('Error sending verification email:', emailError)
       return NextResponse.json({ error: `Email failed to send: ${emailError.message}` }, { status: 500 })
