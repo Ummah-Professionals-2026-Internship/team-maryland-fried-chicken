@@ -4,9 +4,8 @@ import MainLayout from "@/layouts/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-
 
 // --- LOGIN FORM LOGIC COMPONENT ---
 function LoginForm() {
@@ -17,9 +16,26 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
 
+  // Resend Verification Link State
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendStatus, setResendStatus] = useState(null);
+  const [isResending, setIsResending] = useState(false);
+
+  // Handle timer ticker for the 60s cooldown
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setResendStatus(null);
 
     const response = await fetch('/api/login', {
       method: 'POST',
@@ -36,6 +52,36 @@ function LoginForm() {
       router.push(redirectTo);
     }
   };
+
+  const handleResendVerification = async () => {
+    if (resendCooldown > 0 || isResending || !email) return;
+
+    setIsResending(true);
+    setResendStatus(null);
+
+    try {
+      const res = await fetch('/api/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setResendStatus({ type: 'success', message: 'Verification email sent! Please check your inbox.' });
+        setResendCooldown(60); // Start 60-second cooldown timer
+      } else {
+        setResendStatus({ type: 'error', message: data.error || 'Failed to resend verification email.' });
+      }
+    } catch (err) {
+      setResendStatus({ type: 'error', message: 'Network error. Please try again.' });
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  const isUnverifiedError = error && error.toLowerCase().includes('not verified');
 
   return (
     <div className="space-y-6 max-w-sm mx-auto mt-12">
@@ -87,8 +133,42 @@ function LoginForm() {
 
 
             {error && (
-              <p className="text-xs bg-amber-100 text-amber-800 p-3 rounded-lg font-medium mt-3">
-                {error}
+              <div className="text-xs bg-amber-100 text-amber-900 p-3 rounded-lg font-medium mt-3 space-y-1.5">
+                <p>{error}</p>
+
+                {/* RESEND VERIFICATION ACTION BLOCK */}
+                {isUnverifiedError && (
+                  <div className="pt-1 text-[11px] border-t border-amber-200/80">
+                    <span>Didn't see an email here? </span>
+                    {resendCooldown > 0 ? (
+                      <span className="text-amber-700/60 font-semibold cursor-not-allowed">
+                        Resend in {resendCooldown}s
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleResendVerification}
+                        disabled={isResending}
+                        className="underline font-semibold text-amber-900 hover:text-amber-950 disabled:opacity-50 cursor-pointer"
+                      >
+                        {isResending ? 'Sending...' : 'Resend link'}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* RESEND STATUS FEEDBACK BANNER */}
+            {resendStatus && (
+              <p
+                className={`text-xs p-2.5 rounded-lg font-medium mt-2.5 ${
+                  resendStatus.type === 'success'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-red-100 text-red-800'
+                }`}
+              >
+                {resendStatus.message}
               </p>
             )}
 
