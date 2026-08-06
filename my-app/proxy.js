@@ -23,7 +23,7 @@ export async function proxy(request) {
     // 3. Separate API endpoints from frontend Page files
     const isApiRequest = currentPath.startsWith('/api/')
 
-    // 🔑 THE WHITELIST: Public routes including reset password routes
+    // 🔑 THE WHITELIST: Public routes anyone can access
     const isPublicRoute =
         currentPath === "/login" ||
         currentPath === "/api/login" ||
@@ -41,23 +41,30 @@ export async function proxy(request) {
     // Read the reset password flag
     const mustChangePassword = Boolean(user?.user_metadata?.must_change_password)
 
-    // 🔒 GUARD 1: Active session BUT must change password
-    // Blocks them from accessing non-reset pages and APIs
+    // 🔒 GUARD 1: LIMBO USERS TRIED ACCESSING PROTECTED / APP PAGES
+    // If they have an active session, are in limbo, and hit a protected route, hard lock them out.
     if (user && mustChangePassword) {
         const isAllowedResetRoute = 
             currentPath === "/reset-password" || 
-            currentPath === "/api/reset-password"
+            currentPath === "/api/reset-password" ||
+            currentPath === "/api/signout"
 
-        if (!isAllowedResetRoute) {
+        // If it's not a public route and not an explicitly allowed reset route -> hard block them
+        if (!isPublicRoute && !isAllowedResetRoute) {
             if (isApiRequest) {
                 return NextResponse.json(
                     { error: 'Password reset required before continuing.' },
                     { status: 403 }
                 )
             }
-            return NextResponse.redirect(new URL('/reset-password', request.url))
+
+            // Clean redirect: send to reset-password and hard-strip all query parameters
+            const cleanResetUrl = new URL('/reset-password', request.url)
+            cleanResetUrl.search = '' 
+            return NextResponse.redirect(cleanResetUrl)
         }
 
+        // Allow through if they are visiting a public route (like the landing page or a form)
         return response
     }
 
@@ -77,7 +84,9 @@ export async function proxy(request) {
 
     // Prevent fully authorized users (who don't need a reset) from manually visiting /login
     if (user && !mustChangePassword && currentPath === '/login') {
-        return NextResponse.redirect(new URL('/', request.url))
+        const cleanHomeUrl = new URL('/', request.url)
+        cleanHomeUrl.search = '' 
+        return NextResponse.redirect(cleanHomeUrl)
     }
 
     return response

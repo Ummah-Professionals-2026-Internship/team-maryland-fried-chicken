@@ -1,5 +1,4 @@
-﻿// components/TopNavigation.tsx
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -253,14 +252,27 @@ export default function TopNavigation() {
             )}
           </div>
 
-          {/* User Section Dropdown OR Login Button Option */}
+          {/* Core Auth Slot logic update */}
           {isLoggedIn ? (
-            <UserNav 
-              userName={userName} 
-              onLogout={handleLogout} 
-              isForcedReset={mustChangePassword} // 🔑 Locks profile features down if true
-            />
+            mustChangePassword ? (
+              /* ✨ If user is authenticated but stuck in limbo: show an explicit Logout button instead of UserNav dropdown */
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-medium border border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors cursor-pointer"
+              >
+                <LogOut size={14} />
+                <span>Logout</span>
+              </button>
+            ) : (
+              /* Otherwise show normal profile nav dropdown */
+              <UserNav 
+                userName={userName} 
+                onLogout={handleLogout} 
+                isForcedReset={false}
+              />
+            )
           ) : (
+            /* Show login option for unauthenticated viewers */
             <button
               onClick={handleLoginRedirect}
               className="rounded-full px-5 py-2 text-sm font-medium border border-[#2F7FA8] bg-white text-[#2F7FA8] hover:bg-slate-50 cursor-pointer"
