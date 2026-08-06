@@ -43,7 +43,17 @@ export default function TopNavigation() {
   useEffect(() => {
     async function checkAuthStatus() {
       try {
+
+
         const response = await fetch("/api/users/me");
+
+      console.log("USER ME STATUS:", response.status);
+
+      const resBody = await response.json();
+
+      console.log("USER ME BODY:", resBody);
+
+      
         if (response.ok) {
           const resBody = await response.json();
           setIsLoggedIn(true);
