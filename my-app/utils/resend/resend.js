@@ -98,8 +98,8 @@ export async function sendVerificationEmail(email, name, verificationUrl, avatar
   `
 
   return await resendClient.emails.send({
-    from: 'Ummah Professionals <onboarding@resend.dev>',
-    to: "interns.ummah.professional@gmail.com",
+    from: 'Ummah Professionals <no-reply@team-mfc.online>',
+    to: email,
     subject: 'Confirm Your Email - Ummah Professionals',
     html: emailHtml,
   })

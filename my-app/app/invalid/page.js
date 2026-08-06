@@ -1,4 +1,4 @@
-// "use client";
+"use client";
 // this page is here if its needed but for now it's commented out and not used.
 import MainLayout from "@/layouts/MainLayout";
 import { Button } from "@/components/ui/button";
