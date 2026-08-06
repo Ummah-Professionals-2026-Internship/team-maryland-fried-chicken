@@ -35,6 +35,7 @@ export async function proxy(request) {
         currentPath === "/forms/applicants"||
         currentPath === "/verify-account" ||
         (currentPath === "/api/verify-account" && request.method === "POST") ||
+        currentPath === "/resend" ||
         currentPath === "/forms/advisors";
 
     // 4. THE AUTHENTICATION SHIELD
