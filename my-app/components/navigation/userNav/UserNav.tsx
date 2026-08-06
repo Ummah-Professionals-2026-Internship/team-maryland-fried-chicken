@@ -1,4 +1,3 @@
-// components/UserNav.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -8,7 +7,7 @@ import { User, LogOut, ChevronDown } from "lucide-react";
 interface UserNavProps {
   userName: string;
   onLogout: () => void;
-  isForcedReset: boolean; // ✨ Flags if the user is stuck in password limbo
+  isForcedReset: boolean; // Flags if the user is stuck in password limbo
 }
 
 export default function UserNav({ userName, onLogout, isForcedReset }: UserNavProps) {

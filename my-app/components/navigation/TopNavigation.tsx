@@ -190,7 +190,7 @@ export default function TopNavigation() {
             <UserNav 
               userName={userName} 
               onLogout={handleLogout} 
-              isForcedReset={mustChangePassword} // 🔑 Passes the limbo flag to lock dropdown options down
+              isForcedReset={mustChangePassword} 
             />
           ) : (
             <button onClick={handleLoginRedirect} className="rounded-full px-5 py-2 text-sm font-medium border border-[#2F7FA8] bg-white text-[#2F7FA8] hover:bg-slate-50 cursor-pointer">

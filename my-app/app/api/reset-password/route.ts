@@ -36,16 +36,20 @@ export async function POST(request: Request) {
       }
     }
 
-    // 4. Update the password in Supabase Auth
+    // 4. Update password and turn OFF must_change_password flag in user_metadata
     const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword,
+      data: {
+        ...user.user_metadata,
+        must_change_password: false,
+      },
     });
+
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 400 });
     }
 
-    // 5. SECURITY FIX: Forcefully sign out of All Other devices globally
-    // This preserves the current session, whilst terminating any hijacked sessions instantly.
+    // 5. Forcefully sign out of all other devices
     await supabase.auth.signOut({ scope: "others" });
 
     return NextResponse.json(
