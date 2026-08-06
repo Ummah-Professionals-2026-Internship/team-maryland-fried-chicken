@@ -4,8 +4,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
-import { Menu, X, User, LogOut } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Menu, X, User, LogOut, ChevronDown } from "lucide-react";
 import UserNav from "./userNav/UserNav";
 
 type NavItem = {
@@ -17,9 +17,32 @@ export default function TopNavigation() {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [formsDropdownOpen, setFormsDropdownOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>("User");
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close forms dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setFormsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Close dropdowns on path change
+  useEffect(() => {
+    setFormsDropdownOpen(false);
+    setMenuOpen(false);
+  }, [pathname]);
 
   // Verify authentication state and role on navigation changes
   useEffect(() => {
@@ -32,9 +55,9 @@ export default function TopNavigation() {
           setUserRole(resBody.data?.role || "staff");
           setUserName(
             resBody.data?.name ||
-            resBody.data?.full_name ||
-            resBody.data?.email ||
-            "User"
+              resBody.data?.full_name ||
+              resBody.data?.email ||
+              "User"
           );
         } else {
           setIsLoggedIn(false);
@@ -74,40 +97,45 @@ export default function TopNavigation() {
     }
   };
 
+  // Main standalone top-level links
   const getNavItems = (): NavItem[] => {
     if (!isLoggedIn) {
-      return [
-        { label: "Landing Page", href: "/" },
-        { label: "Applicant Form", href: "/forms/applicants" },
-        { label: "Advisor Form", href: "/forms/advisors" },
-      ];
+      return [{ label: "Landing Page", href: "/" }];
     }
 
     const baselineProtectedItems = [
       { label: "Dashboard", href: "/dashboard" },
       { label: "Applicants", href: "/applicants" },
       { label: "Advisors", href: "/advisors" },
-      { label: "Applicant Form", href: "/forms/applicants" },
-      { label: "Advisor Form", href: "/forms/advisors" },
     ];
 
     if (userRole === "admin") {
       return [
         ...baselineProtectedItems,
-        { label: "User Management", href: "/admin/users" },
+        { label: "Users", href: "/admin/users" },
       ];
     }
 
     return baselineProtectedItems;
   };
 
+  // Options contained inside the Forms dropdown menu
+  const formItems: NavItem[] = [
+    { label: "Applicant", href: "/forms/applicants" },
+    { label: "Advisor", href: "/forms/advisors" },
+  ];
+
   const activeNavItems = getNavItems();
+  const isFormsActive = pathname.startsWith("/forms");
 
   return (
     <header className="border-b border-slate-200 bg-white">
       <nav className="flex items-center justify-between px-7 py-4">
         {/* Logo */}
-        <Link href={isLoggedIn ? "/dashboard" : "/"} className="flex items-center gap-3">
+        <Link
+          href={isLoggedIn ? "/dashboard" : "/"}
+          className="flex items-center gap-3"
+        >
           <div className="relative h-10 w-10 overflow-hidden rounded-xl">
             <Image
               src="/images/ummah-logo.png"
@@ -126,11 +154,12 @@ export default function TopNavigation() {
           </div>
         </Link>
 
-        {/* Desktop View */}
+        {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-3">
           {activeNavItems.map((item) => {
             const isActive =
-              pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
+              pathname === item.href ||
+              (item.href !== "/" && pathname.startsWith(`${item.href}/`));
 
             return (
               <Link
@@ -147,7 +176,49 @@ export default function TopNavigation() {
             );
           })}
 
-          {/* Desktop User Dropdown component or Login button */}
+          {/* Forms Dropdown Menu */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setFormsDropdownOpen(!formsDropdownOpen)}
+              className={`flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                isFormsActive
+                  ? "bg-[#2F7FA8] text-white"
+                  : "border border-slate-300 bg-white text-slate-900 hover:bg-slate-50"
+              }`}
+            >
+              <span>Forms</span>
+              <ChevronDown
+                size={16}
+                className={`transition-transform duration-200 ${
+                  formsDropdownOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {formsDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 rounded-2xl border border-slate-100 bg-white p-1.5 shadow-lg ring-1 ring-black/5 z-50">
+                {formItems.map((form) => {
+                  const isFormActive = pathname === form.href;
+                  return (
+                    <Link
+                      key={form.href}
+                      href={form.href}
+                      onClick={() => setFormsDropdownOpen(false)}
+                      className={`block rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+                        isFormActive
+                          ? "bg-[#2F7FA8] text-white"
+                          : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                      }`}
+                    >
+                      {form.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* User Section / Login Button */}
           {isLoggedIn ? (
             <UserNav userName={userName} onLogout={handleLogout} />
           ) : (
@@ -160,7 +231,7 @@ export default function TopNavigation() {
           )}
         </div>
 
-        {/* Mobile Hamburger Menu Toggle Button */}
+        {/* Mobile Hamburger Toggle */}
         <button
           onClick={() => setMenuOpen(!menuOpen)}
           className="md:hidden p-2 cursor-pointer text-slate-700"
@@ -170,19 +241,22 @@ export default function TopNavigation() {
         </button>
       </nav>
 
-      {/* Mobile Menu View */}
+      {/* Mobile Navigation Drawer */}
       {menuOpen && (
         <div className="md:hidden flex flex-col gap-1 px-7 pb-4 border-t border-slate-100 pt-3">
           {activeNavItems.map((item) => {
             const isActive =
-              pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
+              pathname === item.href ||
+              (item.href !== "/" && pathname.startsWith(`${item.href}/`));
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setMenuOpen(false)}
                 className={`rounded-lg px-4 py-2 text-sm font-medium ${
-                  isActive ? "bg-[#2F7FA8] text-white" : "text-slate-900 hover:bg-slate-50"
+                  isActive
+                    ? "bg-[#2F7FA8] text-white"
+                    : "text-slate-900 hover:bg-slate-50"
                 }`}
               >
                 {item.label}
@@ -190,9 +264,33 @@ export default function TopNavigation() {
             );
           })}
 
+          {/* Mobile Forms Accordion / Group */}
+          <div className="border-t border-slate-100 my-1 pt-2">
+            <div className="px-4 py-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Forms
+            </div>
+            {formItems.map((form) => {
+              const isFormActive = pathname === form.href;
+              return (
+                <Link
+                  key={form.href}
+                  href={form.href}
+                  onClick={() => setMenuOpen(false)}
+                  className={`block rounded-lg px-6 py-2 text-sm font-medium ${
+                    isFormActive
+                      ? "bg-[#2F7FA8] text-white"
+                      : "text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {form.label}
+                </Link>
+              );
+            })}
+          </div>
+
           {/* Mobile Account Options */}
           {isLoggedIn ? (
-            <div className="border-t border-slate-200 mt-2 pt-2 space-y-1">
+            <div className="border-t border-slate-200 mt-1 pt-2 space-y-1">
               <div className="px-4 py-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Account ({userName})
               </div>
