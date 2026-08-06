@@ -127,8 +127,8 @@ export async function POST(request) {
     // Priority 1: Manual Production/Staging Env variable
     // Priority 2: Vercel automated system deployment domain (manually prefixing https:// host requirement)
     // Priority 3: Localhost fallback
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL
+      ? `https://${process.env.NEXT_PUBLIC_APP_URL}`
       : 'http://localhost:3000';
 
 
