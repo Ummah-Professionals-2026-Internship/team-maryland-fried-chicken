@@ -47,19 +47,19 @@ export default function TopNavigation() {
 
         const response = await fetch("/api/users/me");
 
-      console.log("USER ME STATUS:", response.status);
+        console.log("USER ME STATUS:", response.status);
 
-      const resBody = await response.json();
+        const resBody = await response.json();
 
-      console.log("USER ME BODY:", resBody);
+        console.log("USER ME BODY:", resBody);
 
-      
+
         if (response.ok) {
           const resBody = await response.json();
           setIsLoggedIn(true);
-          
+
           const passwordFlag = Boolean(
-            resBody.data?.user_metadata?.must_change_password || 
+            resBody.data?.user_metadata?.must_change_password ||
             resBody.data?.must_change_password
           );
           setMustChangePassword(passwordFlag);
@@ -110,7 +110,7 @@ export default function TopNavigation() {
     // Both Logged Out and Limbo states share Landing Page
     if (!isLoggedIn || mustChangePassword) {
       const baseItems: NavItem[] = [{ label: "Landing Page", href: "/" }];
-      
+
       // Limbo option specifically appends the Reset Password link here
       if (mustChangePassword) {
         baseItems.push({ label: "Reset Password", href: "/reset-password", isResetBtn: true });
@@ -136,6 +136,12 @@ export default function TopNavigation() {
     { label: "Advisor", href: "/forms/advisors" },
   ];
 
+  console.log("NAVBAR STATE:", {
+    isLoggedIn,
+    mustChangePassword,
+    userRole,
+    userName,
+  });
   const activeNavItems = getNavItems();
   const isFormsActive = pathname.startsWith("/forms");
 
@@ -197,10 +203,10 @@ export default function TopNavigation() {
 
           {/* User Auth Slot */}
           {isLoggedIn ? (
-            <UserNav 
-              userName={userName} 
-              onLogout={handleLogout} 
-              isForcedReset={mustChangePassword} 
+            <UserNav
+              userName={userName}
+              onLogout={handleLogout}
+              isForcedReset={mustChangePassword}
             />
           ) : (
             <button onClick={handleLoginRedirect} className="rounded-full px-5 py-2 text-sm font-medium border border-[#2F7FA8] bg-white text-[#2F7FA8] hover:bg-slate-50 cursor-pointer">
@@ -220,7 +226,7 @@ export default function TopNavigation() {
         <div className="md:hidden flex flex-col gap-1 px-7 pb-4 border-t border-slate-100 pt-3">
           {activeNavItems.map((item) => {
             const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
-            
+
             if (item.isResetBtn) {
               return (
                 <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} className="flex items-center gap-2 rounded-lg bg-amber-50 text-amber-800 px-4 py-2 text-sm font-medium border border-amber-200">
