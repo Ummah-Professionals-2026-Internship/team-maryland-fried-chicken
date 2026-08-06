@@ -8,7 +8,7 @@ import { User, LogOut, ChevronDown } from "lucide-react";
 interface UserNavProps {
   userName: string;
   onLogout: () => void;
-  isForcedReset: boolean; // ✨ Add the missing prop type here
+  isForcedReset: boolean; // ✨ Flags if the user is stuck in password limbo
 }
 
 export default function UserNav({ userName, onLogout, isForcedReset }: UserNavProps) {
@@ -52,7 +52,8 @@ export default function UserNav({ userName, onLogout, isForcedReset }: UserNavPr
       {/* Dropdown Menu Content */}
       {isOpen && (
         <div className="absolute right-0 mt-2 w-48 rounded-xl bg-white p-1 shadow-lg ring-1 ring-slate-200 z-50">
-          {/* 🔒 Strip away the profile portal entirely if the user is in limbo */}
+          
+          {/* 🔒 STRIP AWAY PROFILE LINK IF USER IS IN LIMBO */}
           {!isForcedReset && (
             <Link
               href="/profile"
@@ -64,6 +65,7 @@ export default function UserNav({ userName, onLogout, isForcedReset }: UserNavPr
             </Link>
           )}
 
+          {/* 🚪 LOGOUT BUTTON (Always visible to everyone) */}
           <button
             type="button"
             onClick={() => {
